@@ -3,26 +3,14 @@ import * as td from 'testdouble';
 import { isBuilderConfig } from './config';
 
 describe('BuilderConfig', () => {
-  // let sandbox: sinon.SinonSandbox;
-
   let logLevelModelMock: any;
 
   beforeEach(async () => {
-    // sandbox = sinon.createSandbox();
-    // isBuilderLogLevel = td.func('isBuilderLogLevel');
-    // td.when(isBuilderLogLevel(td.matchers.anything())).thenReturn(true);
-
-    // await td.replaceEsm('./loglevel', {
-    //   isBuilderLogLevel: isBuilderLogLevel,
-    // });
-    logLevelModelMock = td.replace('./loglevel');
+    logLevelModelMock = await td.replaceEsm('./loglevel');
     console.log(logLevelModelMock);
-
-    // isBuilderLogLevelStub = sandbox.stub(loglevelModel, 'isBuilderLogLevel').returns(true);
   });
 
   afterEach(() => {
-    // sandbox.restore();
     td.reset();
   });
 
@@ -108,7 +96,7 @@ describe('BuilderConfig', () => {
         loglevel: 'test',
       };
 
-      // td.when(isBuilderLogLevel(config.loglevel)).thenReturn(false);
+      td.when(logLevelModelMock.isBuilderLogLevel(config.loglevel)).thenReturn(false);
       td.verify(logLevelModelMock.isBuilderLogLevel(config.loglevel), { times: 1 });
 
       expect(isBuilderConfig(config)).to.be.false;
