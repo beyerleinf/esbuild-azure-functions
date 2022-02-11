@@ -1,0 +1,15 @@
+{
+  "extends": "./node_modules/gts/tsconfig-google.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "outDir": "build",
+    "module": "es2020",
+    "moduleResolution": "node",
+    "target": "ES2021",
+    "declaration": false,
+    "sourceMap": false,
+    "esModuleInterop": true
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["build", "node_modules", "src/**/*.spec.ts"]
+}

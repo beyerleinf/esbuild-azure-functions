@@ -1,2 +1,3 @@
 # esbuild-azure-functions
-A builder for Azure Function powered by esbuild
+
+> A builder for Azure Function powered by esbuild.
