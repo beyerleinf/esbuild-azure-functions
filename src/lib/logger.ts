@@ -2,6 +2,7 @@ import { BuilderLogLevelType } from './models';
 import { blue, green, yellow, red } from 'colorette';
 
 const logLevelMap = {
+  off: -1,
   error: 0,
   warn: 1,
   info: 2,

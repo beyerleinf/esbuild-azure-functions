@@ -2,7 +2,7 @@
 
 import { z } from 'zod';
 
-const BuilderLogLevel = z.enum(['verbose', 'info', 'warn', 'error']);
+const BuilderLogLevel = z.enum(['verbose', 'info', 'warn', 'error', 'off']);
 
 export const BuilderConfig = z.object({
   project: z.string(),
@@ -15,25 +15,3 @@ export const BuilderConfig = z.object({
 
 export type BuilderConfigType = z.infer<typeof BuilderConfig>;
 export type BuilderLogLevelType = z.infer<typeof BuilderLogLevel>;
-
-// export interface BuilderConfig {
-//   project: string;
-//   entryPoints?: string[];
-//   exclude?: string[];
-//   esbuildOptions?: BuildOptions;
-//   clean?: boolean;
-//   loglevel?: BuilderLogLevel;
-// }
-
-// export function isBuilderConfig(arg: any): arg is BuilderConfig {
-//   return (
-//     arg !== null &&
-//     arg !== undefined &&
-//     typeof arg.project === 'string' &&
-//     (!arg.entryPoints ||
-//       (Array.isArray(arg.entryPoints) && arg.entryPoints.every((x: any) => typeof x === 'string'))) &&
-//     (!arg.exclude || (Array.isArray(arg.exclude) && arg.exclude.every((x: any) => typeof x === 'string'))) &&
-//     (!arg.clean || typeof arg.clean === 'boolean') &&
-//     isBuilderLogLevel(arg.loglevel)
-//   );
-// }
