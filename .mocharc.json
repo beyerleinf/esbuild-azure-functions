@@ -5,6 +5,5 @@
   "inlineDiffs": true,
   "extension": ["ts"],
   "reporter": "mocha-multi-reporters",
-  "reporterOptions": "configFile=multi-reporters.config.json",
-  "node-option": ["experimental-specifier-resolution=node", "loader=ts-node/esm", "loader=testdouble"]
+  "reporterOptions": "configFile=multi-reporters.config.json"
 }

@@ -3,9 +3,6 @@
   "compilerOptions": {
     "rootDir": ".",
     "outDir": "build",
-    "module": "es2020",
-    "moduleResolution": "node",
-    "target": "ES2021",
     "declaration": false,
     "sourceMap": false,
     "esModuleInterop": true

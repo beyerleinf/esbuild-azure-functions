@@ -16,12 +16,11 @@ const main = async () => {
     outdir,
     bundle: true,
     sourcemap: false,
-    minify: true,
+    minify: false,
     platform: 'node',
     target: 'node12',
     format: 'esm',
     splitting: true,
-    outExtension: { '.js': '.mjs' },
   });
 };
 

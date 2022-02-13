@@ -2,9 +2,9 @@
   "name": "esbuild-azure-functions",
   "version": "0.1.0",
   "description": "A builder for Azure Functions powered by esbuild.",
-  "main": "build/index.mjs",
+  "main": "build/index.js",
   "bin": {
-    "esbuild-azure-functions": "build/cli.mjs"
+    "esbuild-azure-functions": "build/cli.js"
   },
   "type": "module",
   "files": [
@@ -37,7 +37,7 @@
     "lint": "gts lint",
     "clean": "gts clean",
     "check-types": "tsc --noEmit",
-    "compile": "npm run check-types && node build.mjs",
+    "compile": "npm run check-types && node build.js",
     "fix": "gts fix",
     "prepare": "npm run compile",
     "pretest": "npm run check-types",
@@ -46,28 +46,32 @@
   },
   "dependencies": {
     "chalk": "^5.0.0",
+    "colorette": "^2.0.16",
+    "commander": "^9.0.0",
     "esbuild": "^0.14.21",
     "glob": "^7.2.0",
-    "meow": "^10.1.2",
-    "rimraf": "^3.0.2"
+    "rimraf": "^3.0.2",
+    "zod": "^3.11.6"
   },
   "devDependencies": {
     "@istanbuljs/nyc-config-typescript": "^1.0.2",
     "@types/chai": "^4.3.0",
+    "@types/chai-as-promised": "^7.1.5",
     "@types/glob": "^7.2.0",
     "@types/mocha": "^9.1.0",
+    "@types/mock-fs": "^4.13.1",
     "@types/node": "^14.11.2",
     "@types/rimraf": "^3.0.2",
     "@types/sinon": "^10.0.11",
     "c8": "^7.11.0",
     "chai": "^4.3.6",
+    "chai-as-promised": "^7.1.1",
     "gts": "^3.1.0",
     "mocha": "^9.2.0",
     "mocha-multi-reporters": "^1.5.1",
     "mock-fs": "^5.1.2",
     "sinon": "^13.0.1",
     "source-map-support": "^0.5.21",
-    "testdouble": "^3.16.4",
     "ts-node": "^10.5.0",
     "typescript": "^4.4.4"
   }
