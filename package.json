@@ -39,9 +39,7 @@
     "check-types": "tsc --noEmit",
     "compile": "npm run check-types && node build.js",
     "fix": "gts fix",
-    "prepare": "npm run compile",
     "pretest": "npm run check-types",
-    "posttest": "npm run lint",
     "test": "c8 mocha"
   },
   "dependencies": {
