@@ -6,7 +6,7 @@ import { promisify } from 'util';
 const outdir = './build';
 
 const main = async () => {
-  const { dependencies } = JSON.parse(await fs.readFile('./package.json', 'utf8'));
+  const { version, dependencies } = JSON.parse(await fs.readFile('./package.json', 'utf8'));
 
   await promisify(rimraf)(outdir);
 
@@ -21,6 +21,8 @@ const main = async () => {
     target: 'node12',
     format: 'esm',
     splitting: true,
+    outExtension: { '.js': '.mjs' },
+    define: { PACKAGE_VERSION: `"${version}"` },
   });
 };
 
