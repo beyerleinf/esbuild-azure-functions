@@ -1,11 +1,11 @@
 import { BuildOptions } from 'esbuild';
-import fs from 'fs';
+import { existsSync } from 'fs';
 import path from 'path';
 import { parseConfig } from './config-loader';
 import { NoEntryPointsError, ProjectDirectoryNotFoundError } from './errors';
 import * as esbuild from './esbuild';
 import { glob } from './glob';
-import { createLogger } from './logger';
+import { createLogger, Logger } from './logger';
 import { BuilderConfigType } from './models';
 import { rimraf } from './rimraf';
 
@@ -26,43 +26,70 @@ export async function build(inputConfig: BuilderConfigType) {
   const config = parseConfig(inputConfig);
   const logger = createLogger(config.logLevel);
 
-  if (!fs.existsSync(config.project)) {
-    logger.error(`Project path ${config.project} does not exist`);
-    throw new ProjectDirectoryNotFoundError(config.project);
+  const esbuildOptions = await _prepare(inputConfig, logger);
+
+  await esbuild.build(esbuildOptions);
+
+  logger.info(`⚡ Build complete. Took ${Date.now() - start}ms`);
+}
+
+export async function watch(inputConfig: BuilderConfigType) {
+  const config = parseConfig(inputConfig);
+  const logger = createLogger(config.logLevel);
+
+  const esbuildOptions = await _prepare(inputConfig, logger);
+
+  esbuildOptions.watch = {
+    onRebuild: (error, result) => {
+      if (error) {
+        logger.error('❌ Rebuild failed');
+      } else {
+        logger.info('⚡ Rebuild succeeded');
+      }
+    },
+  };
+
+  await esbuild.build(esbuildOptions);
+}
+
+async function _prepare(inputConfig: BuilderConfigType, logger: Logger): Promise<BuildOptions> {
+  if (!existsSync(inputConfig.project)) {
+    logger.error(`Project path ${inputConfig.project} does not exist`);
+    throw new ProjectDirectoryNotFoundError(inputConfig.project);
   }
 
-  logger.verbose(`📂 Project root ${path.resolve(config.project)}`);
+  logger.verbose(`📂 Project root ${path.resolve(inputConfig.project)}`);
 
   let entryPoints: string[] = [];
 
-  if (config.entryPoints) {
-    entryPoints = config.entryPoints.map(entryPoint => path.resolve(config.project, entryPoint));
+  if (inputConfig.entryPoints) {
+    entryPoints = inputConfig.entryPoints.map(entryPoint => path.resolve(inputConfig.project, entryPoint));
   } else {
     logger.verbose('🔍 No entry points specified, looking for index.ts files');
 
-    const exclude = config.exclude || [];
+    const exclude = inputConfig.exclude || [];
 
     entryPoints = await glob('**/index.ts', {
-      cwd: config.project,
+      cwd: inputConfig.project,
       absolute: true,
       ignore: ['**/node_modules/**', ...exclude],
     });
   }
 
   if (entryPoints.length === 0) {
-    logger.error('No entry points supplied.');
-    throw new NoEntryPointsError(config.project);
+    logger.error('😔 No entry points available.');
+    throw new NoEntryPointsError(inputConfig.project);
   }
 
   logger.verbose(`🔨 Building ${entryPoints.length} entry points`);
 
-  const esbuildOptions: BuildOptions = {
+  const esbuildOptions = {
     ...defaultConfig,
-    ...config.esbuildOptions,
+    ...inputConfig.esbuildOptions,
     entryPoints,
   };
 
-  if (config.clean) {
+  if (inputConfig.clean) {
     logger.verbose(`🧹 Cleaning ${esbuildOptions.outdir}`);
 
     await rimraf(esbuildOptions.outdir!);
@@ -70,11 +97,16 @@ export async function build(inputConfig: BuilderConfigType) {
 
   // fix outdir when only one entry point exists because esbuild
   // doesn't create the correct folder structure
-  if (entryPoints.length === 1) {
-    esbuildOptions.outdir = path.join(esbuildOptions.outdir!, path.basename(path.dirname(entryPoints[0])));
+  if (
+    esbuildOptions.entryPoints &&
+    Array.isArray(esbuildOptions.entryPoints) &&
+    esbuildOptions.entryPoints.length === 1
+  ) {
+    esbuildOptions.outdir = path.join(
+      esbuildOptions.outdir!,
+      path.basename(path.dirname(esbuildOptions.entryPoints[0]))
+    );
   }
 
-  await esbuild.build(esbuildOptions);
-
-  logger.info(`⚡ Build complete. Took ${Date.now() - start}ms`);
+  return esbuildOptions;
 }

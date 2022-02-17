@@ -7,9 +7,12 @@
 This tool is designed to work with Azure Functions written in TypeScript. It uses [esbuild](https://esbuild.github.io/) to create crazy small bundles. This is especially helpful with cold starts and deployment duration.
 
 # Table of Contents <!-- omit in toc -->
-- [Usage](#usage)
+- [Build](#build)
   - [From the CLI](#from-the-cli)
-- [Programmatically](#programmatically)
+  - [Programmatically](#programmatically)
+- [Watch mode](#watch-mode)
+  - [From the CLI](#from-the-cli-1)
+  - [Programmatically](#programmatically-1)
 - [Config](#config)
   - [`project`](#project)
   - [`entryPoints`](#entrypoints)
@@ -21,7 +24,7 @@ This tool is designed to work with Azure Functions written in TypeScript. It use
   - [Package size](#package-size)
   - [Build time](#build-time)
 
-## Usage
+## Build
 
 ### From the CLI
 
@@ -31,7 +34,7 @@ By default, *esbuild-azure-functions* expects a config file called `esbuild-azur
 npx esbuild-azure-functions [-c <config location>]
 ```
 
-## Programmatically
+### Programmatically
 
 Install *esbuild-azure-functions* into your project
 
@@ -51,6 +54,42 @@ const config: BuilderConfigType = {
 
 const main = async () => {
   await build(config);
+}
+
+main();
+
+```
+
+## Watch mode
+
+### From the CLI
+
+By default, *esbuild-azure-functions* expects a config file called `esbuild-azure-functions.config.json` in the directory you are running it from. You can specify a different config location with the `-c | --config` flag. Refer to the [Config section](#config) for config options.
+
+```
+npx esbuild-azure-functions --watch [-c <config location>]
+```
+
+### Programmatically
+
+Install *esbuild-azure-functions* into your project
+
+```
+npm i --save-dev esbuild-azure-functions
+```
+
+```ts
+import { watch, BuilderConfigType } from 'esbuild-azure-functions';
+
+const config: BuilderConfigType = {
+  project: process.cwd(),
+  esbuildOptions: {
+    outdir: 'MyCustomOutDir'
+  }
+};
+
+const main = async () => {
+  await watch(config);
 }
 
 main();
