@@ -26,7 +26,8 @@ const expectDefaultConfig: BuildOptions = {
   platform: 'node',
   splitting: true,
   format: 'esm',
-  outdir: 'build',
+  outdir: 'dist',
+  outExtension: { '.js': '.mjs' },
 };
 
 const projectDir = 'my/project';

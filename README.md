@@ -160,7 +160,8 @@ A simple starting config could look like this
   platform: 'node',
   splitting: true,
   format: 'esm',
-  outdir: 'build',
+  outdir: 'dist',
+  outExtension: { '.js': '.mjs' },
 }
 ```
 

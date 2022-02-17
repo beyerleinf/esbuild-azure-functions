@@ -17,7 +17,8 @@ const defaultConfig: BuildOptions = {
   platform: 'node',
   splitting: true,
   format: 'esm',
-  outdir: 'build',
+  outdir: 'dist',
+  outExtension: { '.js': '.mjs' },
 };
 
 export async function build(inputConfig: BuilderConfigType) {
