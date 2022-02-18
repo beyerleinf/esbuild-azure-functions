@@ -62,15 +62,6 @@ describe('DirnamePlugin', () => {
   });
 
   it('should return error in onStart when metafile is false', async () => {
-    const args = {
-      metafile: {
-        outputs: {
-          [output1]: {},
-          [output2]: {},
-        },
-      },
-    };
-
     dirnamePlugin().setup({ ...mockBuild, initialOptions: { metafile: false } } as unknown as PluginBuild);
 
     const result = mockBuild.onStart.firstCall.args[0]();
