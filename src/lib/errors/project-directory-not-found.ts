@@ -6,6 +6,6 @@ export class ProjectDirectoryNotFoundError extends Error {
 
     this.name = this.constructor.name;
 
-    // Error.captureStackTrace(this, this.constructor);
+    Error.captureStackTrace(this, this.constructor);
   }
 }

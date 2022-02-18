@@ -1,6 +1,13 @@
 import { BuilderLogLevelType } from './models';
 import { blue, green, yellow, red } from 'colorette';
 
+export type Logger = {
+  verbose: (msg: string) => void;
+  info: (msg: string) => void;
+  warn: (msg: string) => void;
+  error: (msg: string) => void;
+};
+
 const logLevelMap = {
   off: -1,
   error: 0,
@@ -10,7 +17,7 @@ const logLevelMap = {
 };
 
 /* c8 ignore start */
-export function createLogger(logLevel: BuilderLogLevelType = 'error') {
+export function createLogger(logLevel: BuilderLogLevelType = 'error'): Logger {
   const log = (msg: string) => console.log(`${msg}`);
 
   const mappedLogLevel = mapLogLevel(logLevel);
