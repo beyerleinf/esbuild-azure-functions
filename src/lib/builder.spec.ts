@@ -1,5 +1,6 @@
 import { expect, use as chaiUse } from 'chai';
 import chaiAsPromised from 'chai-as-promised';
+import chaiExclude from 'chai-exclude';
 import { BuildOptions } from 'esbuild';
 import mockFS from 'mock-fs';
 import path from 'path';
@@ -12,18 +13,21 @@ import * as esbuild from './esbuild';
 import * as glob from './glob';
 import * as logger from './logger';
 import { BuilderConfigType } from './models';
+import * as dirnamePlugin from './plugins/dirname';
 import * as rimraf from './rimraf';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 chaiUse(chaiAsPromised);
+chaiUse(chaiExclude);
 
-const expectDefaultConfig: BuildOptions = {
+const expectedDefaultConfig: BuildOptions = {
   minify: true,
   bundle: true,
   sourcemap: false,
   watch: false,
   platform: 'node',
+  target: 'node12',
   splitting: true,
   format: 'esm',
   outdir: 'dist',
@@ -39,6 +43,7 @@ describe('Builder', () => {
   let parseConfigStub: sinon.SinonStub;
   let globStub: sinon.SinonStub;
   let rimrafStub: sinon.SinonStub;
+  let dirnamePluginStub: sinon.SinonStub;
 
   let mockLogger: {
     error: sinon.SinonStub;
@@ -65,6 +70,7 @@ describe('Builder', () => {
     parseConfigStub = sandbox.stub(configLoader, 'parseConfig');
     globStub = sandbox.stub(glob, 'glob').resolves([]);
     rimrafStub = sandbox.stub(rimraf, 'rimraf').resolves();
+    dirnamePluginStub = sandbox.stub(dirnamePlugin, 'dirnamePlugin').returns('dirnamePluginStub' as any);
 
     sandbox.stub(logger, 'createLogger').returns(mockLogger);
   });
@@ -104,11 +110,13 @@ describe('Builder', () => {
 
       expect(globStub.called).to.be.false;
       expect(rimrafStub.called).to.be.false;
+      expect(dirnamePluginStub.called).to.be.false;
 
       expect(esbuildStub.calledOnce).to.be.true;
       expect(esbuildStub.firstCall.args[0]).to.eql({
-        ...expectDefaultConfig,
+        ...expectedDefaultConfig,
         entryPoints: entryPoints.map(entryPoint => `${process.cwd()}/${projectDir}/${entryPoint}`),
+        plugins: [],
       });
     });
 
@@ -129,12 +137,14 @@ describe('Builder', () => {
 
       expect(globStub.called).to.be.false;
       expect(rimrafStub.called).to.be.false;
+      expect(dirnamePluginStub.called).to.be.false;
 
       expect(esbuildStub.calledOnce).to.be.true;
       expect(esbuildStub.firstCall.args[0]).to.eql({
-        ...expectDefaultConfig,
+        ...expectedDefaultConfig,
         ...config.esbuildOptions,
         entryPoints: entryPoints.map(entryPoint => `${process.cwd()}/${projectDir}/${entryPoint}`),
+        plugins: [],
       });
     });
 
@@ -154,12 +164,14 @@ describe('Builder', () => {
       await build(config);
 
       expect(rimrafStub.called).to.be.false;
+      expect(dirnamePluginStub.called).to.be.false;
 
       expect(esbuildStub.calledOnce).to.be.true;
       expect(esbuildStub.firstCall.args[0]).to.eql({
-        ...expectDefaultConfig,
+        ...expectedDefaultConfig,
         ...config.esbuildOptions,
         entryPoints: files,
+        plugins: [],
       });
       expect(globStub.calledOnce).to.be.true;
       expect(globStub.firstCall.args).to.eql([
@@ -189,12 +201,14 @@ describe('Builder', () => {
       await build(config);
 
       expect(rimrafStub.called).to.be.false;
+      expect(dirnamePluginStub.called).to.be.false;
 
       expect(esbuildStub.calledOnce).to.be.true;
       expect(esbuildStub.firstCall.args[0]).to.eql({
-        ...expectDefaultConfig,
+        ...expectedDefaultConfig,
         ...config.esbuildOptions,
         entryPoints: files,
+        plugins: [],
       });
       expect(globStub.calledOnce).to.be.true;
       expect(globStub.firstCall.args).to.eql([
@@ -247,13 +261,48 @@ describe('Builder', () => {
       await build(config);
 
       expect(rimrafStub.called).to.be.false;
+      expect(dirnamePluginStub.called).to.be.false;
 
       expect(esbuildStub.calledOnce).to.be.true;
       expect(esbuildStub.firstCall.args[0]).to.eql({
-        ...expectDefaultConfig,
+        ...expectedDefaultConfig,
         ...config.esbuildOptions,
         entryPoints: files,
         outdir: path.join(outdir, path.basename(path.dirname(files[0]))),
+        plugins: [],
+      });
+    });
+
+    it('should add dirname plugin when advancedOptions.enableDirnameShim is true', async () => {
+      const entryPoints = ['func1/index.ts', 'func2/index.ts'];
+
+      const config: BuilderConfigType = {
+        project: projectDir,
+        entryPoints,
+        esbuildOptions: {
+          outdir: 'something',
+        },
+        advancedOptions: {
+          enableDirnameShim: true,
+        },
+      };
+
+      parseConfigStub.returns(config);
+
+      await build(config);
+
+      expect(globStub.called).to.be.false;
+      expect(rimrafStub.called).to.be.false;
+
+      expect(dirnamePluginStub.calledOnce).to.be.true;
+
+      expect(esbuildStub.calledOnce).to.be.true;
+      expect(esbuildStub.firstCall.args[0]).to.eql({
+        ...expectedDefaultConfig,
+        ...config.esbuildOptions,
+        entryPoints: entryPoints.map(entryPoint => `${process.cwd()}/${projectDir}/${entryPoint}`),
+        metafile: true,
+        plugins: ['dirnamePluginStub'],
       });
     });
 
@@ -321,15 +370,17 @@ describe('Builder', () => {
 
       expect(globStub.called).to.be.false;
       expect(rimrafStub.called).to.be.false;
+      expect(dirnamePluginStub.called).to.be.false;
 
       expect(esbuildStub.calledOnce).to.be.true;
-      sinon.assert.match(esbuildStub.firstCall.args[0], {
-        ...expectDefaultConfig,
-        entryPoints: entryPoints.map(entryPoint => `${process.cwd()}/${projectDir}/${entryPoint}`),
-        watch: {
-          onRebuild: sinon.match.func,
-        },
-      });
+      expect(esbuildStub.firstCall.args[0])
+        .excluding('watch')
+        .to.eql({
+          ...expectedDefaultConfig,
+          entryPoints: entryPoints.map(entryPoint => `${process.cwd()}/${projectDir}/${entryPoint}`),
+          plugins: [],
+        });
+      expect(typeof esbuildStub.firstCall.args[0].watch.onRebuild).to.eql('function');
     });
 
     it('should call esbuild.build with correct config when esbuildOptions were supplied', async () => {
@@ -349,16 +400,18 @@ describe('Builder', () => {
 
       expect(globStub.called).to.be.false;
       expect(rimrafStub.called).to.be.false;
+      expect(dirnamePluginStub.called).to.be.false;
 
       expect(esbuildStub.calledOnce).to.be.true;
-      sinon.assert.match(esbuildStub.firstCall.args[0], {
-        ...expectDefaultConfig,
-        ...config.esbuildOptions,
-        entryPoints: entryPoints.map(entryPoint => `${process.cwd()}/${projectDir}/${entryPoint}`),
-        watch: {
-          onRebuild: sinon.match.func,
-        },
-      });
+      expect(esbuildStub.firstCall.args[0])
+        .excluding('watch')
+        .to.eql({
+          ...expectedDefaultConfig,
+          ...config.esbuildOptions,
+          entryPoints: entryPoints.map(entryPoint => `${process.cwd()}/${projectDir}/${entryPoint}`),
+          plugins: [],
+        });
+      expect(typeof esbuildStub.firstCall.args[0].watch.onRebuild).to.eql('function');
     });
 
     it('should glob all index.ts files when no entryPoints were supplied', async () => {
@@ -377,16 +430,18 @@ describe('Builder', () => {
       await watch(config);
 
       expect(rimrafStub.called).to.be.false;
+      expect(dirnamePluginStub.called).to.be.false;
 
       expect(esbuildStub.calledOnce).to.be.true;
-      sinon.assert.match(esbuildStub.firstCall.args[0], {
-        ...expectDefaultConfig,
-        ...config.esbuildOptions,
-        entryPoints: files,
-        watch: {
-          onRebuild: sinon.match.func,
-        },
-      });
+      expect(esbuildStub.firstCall.args[0])
+        .excluding('watch')
+        .to.eql({
+          ...expectedDefaultConfig,
+          ...config.esbuildOptions,
+          entryPoints: files,
+          plugins: [],
+        });
+      expect(typeof esbuildStub.firstCall.args[0].watch.onRebuild).to.eql('function');
       expect(globStub.calledOnce).to.be.true;
       expect(globStub.firstCall.args).to.eql([
         '**/index.ts',
@@ -415,16 +470,18 @@ describe('Builder', () => {
       await watch(config);
 
       expect(rimrafStub.called).to.be.false;
+      expect(dirnamePluginStub.called).to.be.false;
 
       expect(esbuildStub.calledOnce).to.be.true;
-      sinon.assert.match(esbuildStub.firstCall.args[0], {
-        ...expectDefaultConfig,
-        ...config.esbuildOptions,
-        entryPoints: files,
-        watch: {
-          onRebuild: sinon.match.func,
-        },
-      });
+      expect(esbuildStub.firstCall.args[0])
+        .excluding('watch')
+        .to.eql({
+          ...expectedDefaultConfig,
+          ...config.esbuildOptions,
+          entryPoints: files,
+          plugins: [],
+        });
+      expect(typeof esbuildStub.firstCall.args[0].watch.onRebuild).to.eql('function');
       expect(globStub.calledOnce).to.be.true;
       expect(globStub.firstCall.args).to.eql([
         '**/index.ts',
@@ -476,17 +533,55 @@ describe('Builder', () => {
       await watch(config);
 
       expect(rimrafStub.called).to.be.false;
+      expect(dirnamePluginStub.called).to.be.false;
 
       expect(esbuildStub.calledOnce).to.be.true;
-      sinon.assert.match(esbuildStub.firstCall.args[0], {
-        ...expectDefaultConfig,
-        ...config.esbuildOptions,
-        entryPoints: files,
-        outdir: path.join(outdir, path.basename(path.dirname(files[0]))),
-        watch: {
-          onRebuild: sinon.match.func,
+      expect(esbuildStub.firstCall.args[0])
+        .excluding('watch')
+        .to.eql({
+          ...expectedDefaultConfig,
+          ...config.esbuildOptions,
+          entryPoints: files,
+          outdir: path.join(outdir, path.basename(path.dirname(files[0]))),
+          plugins: [],
+        });
+      expect(typeof esbuildStub.firstCall.args[0].watch.onRebuild).to.eql('function');
+    });
+
+    it('should add dirname plugin when advancedOptions.enableDirnameShim is true', async () => {
+      const entryPoints = ['func1/index.ts', 'func2/index.ts'];
+
+      const config: BuilderConfigType = {
+        project: projectDir,
+        entryPoints,
+        esbuildOptions: {
+          outdir: 'something',
         },
-      });
+        advancedOptions: {
+          enableDirnameShim: true,
+        },
+      };
+
+      parseConfigStub.returns(config);
+
+      await watch(config);
+
+      expect(globStub.called).to.be.false;
+      expect(rimrafStub.called).to.be.false;
+
+      expect(dirnamePluginStub.calledOnce).to.be.true;
+
+      expect(esbuildStub.calledOnce).to.be.true;
+      expect(esbuildStub.firstCall.args[0])
+        .excluding(['watch'])
+        .to.eql({
+          ...expectedDefaultConfig,
+          ...config.esbuildOptions,
+          entryPoints: entryPoints.map(entryPoint => `${process.cwd()}/${projectDir}/${entryPoint}`),
+          metafile: true,
+          plugins: ['dirnamePluginStub'],
+        });
+      expect(typeof esbuildStub.firstCall.args[0].watch.onRebuild).to.eql('function');
     });
 
     it('should call logger.error when onRebuild gets called with error', async () => {

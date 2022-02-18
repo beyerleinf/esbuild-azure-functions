@@ -7,6 +7,7 @@ import * as esbuild from './esbuild';
 import { glob } from './glob';
 import { createLogger, Logger } from './logger';
 import { BuilderConfigType } from './models';
+import { dirnamePlugin } from './plugins';
 import { rimraf } from './rimraf';
 
 const defaultConfig: BuildOptions = {
@@ -15,6 +16,7 @@ const defaultConfig: BuildOptions = {
   sourcemap: false,
   watch: false,
   platform: 'node',
+  target: 'node12',
   splitting: true,
   format: 'esm',
   outdir: 'dist',
@@ -41,7 +43,7 @@ export async function watch(inputConfig: BuilderConfigType) {
   const esbuildOptions = await _prepare(inputConfig, logger);
 
   esbuildOptions.watch = {
-    onRebuild: (error, result) => {
+    onRebuild: error => {
       if (error) {
         logger.error('❌ Rebuild failed');
       } else {
@@ -84,30 +86,49 @@ async function _prepare(inputConfig: BuilderConfigType, logger: Logger): Promise
 
   logger.verbose(`🔨 Building ${entryPoints.length} entry points`);
 
-  const esbuildOptions = {
+  const esbuildOptions: BuildOptions = {
     ...defaultConfig,
     ...inputConfig.esbuildOptions,
     entryPoints,
+    plugins: _getPlugins(inputConfig),
   };
 
-  if (inputConfig.clean) {
-    logger.verbose(`🧹 Cleaning ${esbuildOptions.outdir}`);
-
-    await rimraf(esbuildOptions.outdir!);
-  }
+  await _clean(logger, esbuildOptions.outdir!, inputConfig.clean);
 
   // fix outdir when only one entry point exists because esbuild
   // doesn't create the correct folder structure
-  if (
-    esbuildOptions.entryPoints &&
-    Array.isArray(esbuildOptions.entryPoints) &&
-    esbuildOptions.entryPoints.length === 1
-  ) {
+  if (isSingleEntryPoint(esbuildOptions.entryPoints)) {
     esbuildOptions.outdir = path.join(
       esbuildOptions.outdir!,
       path.basename(path.dirname(esbuildOptions.entryPoints[0]))
     );
   }
 
+  if (inputConfig.advancedOptions?.enableDirnameShim) {
+    esbuildOptions.metafile = true;
+  }
+
   return esbuildOptions;
+}
+
+async function _clean(logger: Logger, dir: string, clean?: boolean) {
+  if (clean) {
+    logger.verbose(`🧹 Cleaning ${dir}`);
+
+    await rimraf(dir);
+  }
+}
+
+function _getPlugins(config: BuilderConfigType) {
+  const plugins = config.esbuildOptions?.plugins || [];
+
+  if (config.advancedOptions?.enableDirnameShim) {
+    plugins.push(dirnamePlugin());
+  }
+
+  return plugins;
+}
+
+function isSingleEntryPoint(entryPoints?: string[] | Record<string, string>): entryPoints is string[] {
+  return !!entryPoints && Array.isArray(entryPoints) && entryPoints.length === 1;
 }
