@@ -1,7 +1,7 @@
 import { program } from 'commander';
 import { loadConfig, parseConfig } from './lib/config-loader';
 import { build, watch } from './lib/builder';
-import { promises as fs } from 'fs';
+import fs from 'fs-extra';
 
 const main = async () => {
   const { name, version, description } = JSON.parse(await fs.readFile(`${__dirname}/../../package.json`, 'utf8'));

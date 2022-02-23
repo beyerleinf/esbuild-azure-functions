@@ -1,4 +1,4 @@
-import { promises as fs } from 'fs';
+import fs from 'fs-extra';
 import { FileSystemError, InvalidConfigError, InvalidJSONError } from './errors';
 import { BuilderConfig } from './models/config';
 

@@ -1,1 +1,1 @@
-export * from './dirname';
+export * from './shim.plugin';

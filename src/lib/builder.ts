@@ -1,5 +1,5 @@
 import { BuildOptions } from 'esbuild';
-import { existsSync } from 'fs';
+import fs from 'fs-extra';
 import path from 'path';
 import { parseConfig } from './config-loader';
 import { NoEntryPointsError, ProjectDirectoryNotFoundError } from './errors';
@@ -7,8 +7,9 @@ import * as esbuild from './esbuild';
 import { glob } from './glob';
 import { createLogger, Logger } from './logger';
 import { BuilderConfigType } from './models';
-import { dirnamePlugin } from './plugins';
+import { shimPlugin } from './plugins';
 import { rimraf } from './rimraf';
+import { DIRNAME_SHIM, REQUIRE_SHIM } from './shims';
 
 const defaultConfig: BuildOptions = {
   minify: true,
@@ -31,7 +32,11 @@ export async function build(inputConfig: BuilderConfigType) {
 
   const esbuildOptions = await _prepare(inputConfig, logger);
 
-  await esbuild.build(esbuildOptions);
+  const result = await esbuild.build(esbuildOptions);
+
+  for (const file of result.outputFiles!) {
+    await fs.outputFile(file.path, file.contents);
+  }
 
   logger.info(`⚡ Build complete. Took ${Date.now() - start}ms`);
 }
@@ -43,10 +48,14 @@ export async function watch(inputConfig: BuilderConfigType) {
   const esbuildOptions = await _prepare(inputConfig, logger);
 
   esbuildOptions.watch = {
-    onRebuild: error => {
+    onRebuild: async (error, result) => {
       if (error) {
         logger.error('❌ Rebuild failed');
       } else {
+        for (const file of result?.outputFiles || []) {
+          await fs.outputFile(file.path, file.contents);
+        }
+
         logger.info('⚡ Rebuild succeeded');
       }
     },
@@ -56,7 +65,7 @@ export async function watch(inputConfig: BuilderConfigType) {
 }
 
 async function _prepare(inputConfig: BuilderConfigType, logger: Logger): Promise<BuildOptions> {
-  if (!existsSync(inputConfig.project)) {
+  if (!fs.pathExistsSync(inputConfig.project)) {
     logger.error(`Project path ${inputConfig.project} does not exist`);
     throw new ProjectDirectoryNotFoundError(inputConfig.project);
   }
@@ -104,10 +113,6 @@ async function _prepare(inputConfig: BuilderConfigType, logger: Logger): Promise
     );
   }
 
-  if (inputConfig.advancedOptions?.enableDirnameShim) {
-    esbuildOptions.metafile = true;
-  }
-
   return esbuildOptions;
 }
 
@@ -122,8 +127,18 @@ async function _clean(logger: Logger, dir: string, clean?: boolean) {
 function _getPlugins(config: BuilderConfigType) {
   const plugins = config.esbuildOptions?.plugins || [];
 
+  const shims = [];
+
   if (config.advancedOptions?.enableDirnameShim) {
-    plugins.push(dirnamePlugin());
+    shims.push(DIRNAME_SHIM);
+  }
+
+  if (config.advancedOptions?.enableRequireShim) {
+    shims.push(REQUIRE_SHIM);
+  }
+
+  if (shims.length > 0) {
+    plugins.push(shimPlugin({ shims }));
   }
 
   return plugins;

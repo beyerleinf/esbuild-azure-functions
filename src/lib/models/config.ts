@@ -7,7 +7,8 @@ const BuilderLogLevel = z.enum(['verbose', 'info', 'warn', 'error', 'off']);
 const EsbuildOptions = z.any();
 
 const AdvancedBuilderOptions = z.object({
-  enableDirnameShim: z.boolean(),
+  enableDirnameShim: z.boolean().optional(),
+  enableRequireShim: z.boolean().optional(),
 });
 
 export const BuilderConfig = z.object({
