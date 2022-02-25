@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.1.0](https://github.com/beyerleinf/esbuild-azure-functions/compare/v1.0.0...v1.1.0) (2022-02-25)
+
+
+### Features
+
+* Implement require shim ([c5c2672](https://github.com/beyerleinf/esbuild-azure-functions/commit/c5c26724bc785dfb39cd904261045ab351f30fa8)), closes [#5](https://github.com/beyerleinf/esbuild-azure-functions/issues/5)
+
+
+### Bug Fixes
+
+* Fix builder output file content ([77853ef](https://github.com/beyerleinf/esbuild-azure-functions/commit/77853ef70df5aac0bafb69cbfa6b62c4a44c7e4e))
+
 ## [1.0.0](https://github.com/beyerleinf/esbuild-azure-functions/compare/v0.1.0...v1.0.0) (2022-02-18)
 
 
