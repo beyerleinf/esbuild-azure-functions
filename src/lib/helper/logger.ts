@@ -1,4 +1,4 @@
-import { BuilderLogLevelType } from './models';
+import { BuilderLogLevelType } from '../models';
 import { blue, green, yellow, red } from 'colorette';
 
 export type Logger = {
