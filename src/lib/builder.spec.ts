@@ -10,12 +10,12 @@ import { ZodError } from 'zod';
 import { build, watch } from './builder';
 import * as configLoader from './config-loader';
 import { InvalidConfigError, NoEntryPointsError, ProjectDirectoryNotFoundError } from './errors';
-import * as esbuild from './esbuild';
-import * as glob from './glob';
-import * as logger from './logger';
+import * as esbuild from './helper/esbuild';
+import * as glob from './helper/glob';
+import * as logger from './helper/logger';
+import * as rimraf from './helper/rimraf';
 import { BuilderConfigType } from './models';
 import * as shimPlugin from './plugins/shim.plugin';
-import * as rimraf from './rimraf';
 import * as shims from './shims';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -346,8 +346,8 @@ describe('Builder', () => {
 
       esbuildStub.resolves({
         outputFiles: [
-          { path: 'some/dir/file1', contents: 'content1' },
-          { path: 'some/dir/file2', contents: 'content2' },
+          { path: 'some/dir/file1', text: 'content1' },
+          { path: 'some/dir/file2', text: 'content2' },
         ],
       });
 
@@ -748,8 +748,8 @@ describe('Builder', () => {
 
       await esbuildStub.firstCall.args[0].watch.onRebuild(undefined, {
         outputFiles: [
-          { path: 'some/dir/file1', contents: 'content1' },
-          { path: 'some/dir/file2', contents: 'content2' },
+          { path: 'some/dir/file1', text: 'content1' },
+          { path: 'some/dir/file2', text: 'content2' },
         ],
       });
 

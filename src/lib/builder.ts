@@ -3,12 +3,10 @@ import fs from 'fs-extra';
 import path from 'path';
 import { parseConfig } from './config-loader';
 import { NoEntryPointsError, ProjectDirectoryNotFoundError } from './errors';
-import * as esbuild from './esbuild';
-import { glob } from './glob';
-import { createLogger, Logger } from './logger';
+import { createLogger, glob, Logger, rimraf } from './helper';
+import * as esbuild from './helper/esbuild';
 import { BuilderConfigType } from './models';
 import { shimPlugin } from './plugins';
-import { rimraf } from './rimraf';
 import { DIRNAME_SHIM, REQUIRE_SHIM } from './shims';
 
 const defaultConfig: BuildOptions = {
@@ -35,7 +33,7 @@ export async function build(inputConfig: BuilderConfigType) {
   const result = await esbuild.build(esbuildOptions);
 
   for (const file of result.outputFiles!) {
-    await fs.outputFile(file.path, file.contents);
+    await fs.outputFile(file.path, file.text);
   }
 
   logger.info(`⚡ Build complete. Took ${Date.now() - start}ms`);
@@ -53,7 +51,7 @@ export async function watch(inputConfig: BuilderConfigType) {
         logger.error('❌ Rebuild failed');
       } else {
         for (const file of result?.outputFiles || []) {
-          await fs.outputFile(file.path, file.contents);
+          await fs.outputFile(file.path, file.text);
         }
 
         logger.info('⚡ Rebuild succeeded');
