@@ -205,7 +205,7 @@ This error stems from the fact that `__dirname` and `__filename` are not present
 
 This error stems from esbuild not being able to convert CJS requires to ESM imports. This happens mostly (from what I've seen) with Node.js internals (like http, crypto and so on). To fix this issue you have two options:
 
-1. Turn code splitting of and change the format to `cjs` **(not recommended because it increases the bundle size exponentially)**
+1. Turn code splitting off and change the format to `cjs` **(not recommended because it increases the bundle size exponentially)**
 
 ```js
 // build.mjs
