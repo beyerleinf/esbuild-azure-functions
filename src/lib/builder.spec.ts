@@ -2,6 +2,7 @@ import { expect, use as chaiUse } from 'chai';
 import chaiAsPromised from 'chai-as-promised';
 import chaiExclude from 'chai-exclude';
 import { BuildOptions } from 'esbuild';
+import fs from 'fs/promises';
 import mockFS from 'mock-fs';
 import path from 'path';
 import sinon from 'sinon';
@@ -9,12 +10,13 @@ import { ZodError } from 'zod';
 import { build, watch } from './builder';
 import * as configLoader from './config-loader';
 import { InvalidConfigError, NoEntryPointsError, ProjectDirectoryNotFoundError } from './errors';
-import * as esbuild from './esbuild';
-import * as glob from './glob';
-import * as logger from './logger';
+import * as esbuild from './helper/esbuild';
+import * as glob from './helper/glob';
+import * as logger from './helper/logger';
+import * as rimraf from './helper/rimraf';
 import { BuilderConfigType } from './models';
-import * as dirnamePlugin from './plugins/dirname';
-import * as rimraf from './rimraf';
+import * as shimPlugin from './plugins/shim.plugin';
+import * as shims from './shims';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -43,7 +45,7 @@ describe('Builder', () => {
   let parseConfigStub: sinon.SinonStub;
   let globStub: sinon.SinonStub;
   let rimrafStub: sinon.SinonStub;
-  let dirnamePluginStub: sinon.SinonStub;
+  let shimPluginStub: sinon.SinonStub;
 
   let mockLogger: {
     error: sinon.SinonStub;
@@ -66,11 +68,11 @@ describe('Builder', () => {
       verbose: sandbox.stub(),
     };
 
-    esbuildStub = sandbox.stub(esbuild, 'build').resolves();
+    esbuildStub = sandbox.stub(esbuild, 'build').resolves({ outputFiles: [], errors: [], warnings: [] });
     parseConfigStub = sandbox.stub(configLoader, 'parseConfig');
     globStub = sandbox.stub(glob, 'glob').resolves([]);
     rimrafStub = sandbox.stub(rimraf, 'rimraf').resolves();
-    dirnamePluginStub = sandbox.stub(dirnamePlugin, 'dirnamePlugin').returns('dirnamePluginStub' as any);
+    shimPluginStub = sandbox.stub(shimPlugin, 'shimPlugin').returns('shimPluginStub' as any);
 
     sandbox.stub(logger, 'createLogger').returns(mockLogger);
   });
@@ -110,7 +112,7 @@ describe('Builder', () => {
 
       expect(globStub.called).to.be.false;
       expect(rimrafStub.called).to.be.false;
-      expect(dirnamePluginStub.called).to.be.false;
+      expect(shimPluginStub.called).to.be.false;
 
       expect(esbuildStub.calledOnce).to.be.true;
       expect(esbuildStub.firstCall.args[0]).to.eql({
@@ -137,7 +139,7 @@ describe('Builder', () => {
 
       expect(globStub.called).to.be.false;
       expect(rimrafStub.called).to.be.false;
-      expect(dirnamePluginStub.called).to.be.false;
+      expect(shimPluginStub.called).to.be.false;
 
       expect(esbuildStub.calledOnce).to.be.true;
       expect(esbuildStub.firstCall.args[0]).to.eql({
@@ -164,7 +166,7 @@ describe('Builder', () => {
       await build(config);
 
       expect(rimrafStub.called).to.be.false;
-      expect(dirnamePluginStub.called).to.be.false;
+      expect(shimPluginStub.called).to.be.false;
 
       expect(esbuildStub.calledOnce).to.be.true;
       expect(esbuildStub.firstCall.args[0]).to.eql({
@@ -201,7 +203,7 @@ describe('Builder', () => {
       await build(config);
 
       expect(rimrafStub.called).to.be.false;
-      expect(dirnamePluginStub.called).to.be.false;
+      expect(shimPluginStub.called).to.be.false;
 
       expect(esbuildStub.calledOnce).to.be.true;
       expect(esbuildStub.firstCall.args[0]).to.eql({
@@ -261,7 +263,7 @@ describe('Builder', () => {
       await build(config);
 
       expect(rimrafStub.called).to.be.false;
-      expect(dirnamePluginStub.called).to.be.false;
+      expect(shimPluginStub.called).to.be.false;
 
       expect(esbuildStub.calledOnce).to.be.true;
       expect(esbuildStub.firstCall.args[0]).to.eql({
@@ -273,7 +275,7 @@ describe('Builder', () => {
       });
     });
 
-    it('should add dirname plugin when advancedOptions.enableDirnameShim is true', async () => {
+    it('should add shim plugin with dirname shim when advancedOptions.enableDirnameShim is true', async () => {
       const entryPoints = ['func1/index.ts', 'func2/index.ts'];
 
       const config: BuilderConfigType = {
@@ -294,16 +296,78 @@ describe('Builder', () => {
       expect(globStub.called).to.be.false;
       expect(rimrafStub.called).to.be.false;
 
-      expect(dirnamePluginStub.calledOnce).to.be.true;
+      expect(shimPluginStub.calledOnce).to.be.true;
+      expect(shimPluginStub.firstCall.args[0]).to.eql({ shims: [shims.DIRNAME_SHIM] });
 
       expect(esbuildStub.calledOnce).to.be.true;
       expect(esbuildStub.firstCall.args[0]).to.eql({
         ...expectedDefaultConfig,
         ...config.esbuildOptions,
         entryPoints: entryPoints.map(entryPoint => `${process.cwd()}/${projectDir}/${entryPoint}`),
-        metafile: true,
-        plugins: ['dirnamePluginStub'],
+        plugins: ['shimPluginStub'],
       });
+    });
+
+    it('should add shim plugin with require shim when advancedOptions.enableRequireShim is true', async () => {
+      const entryPoints = ['func1/index.ts', 'func2/index.ts'];
+
+      const config: BuilderConfigType = {
+        project: projectDir,
+        entryPoints,
+        esbuildOptions: {
+          outdir: 'something',
+        },
+        advancedOptions: {
+          enableRequireShim: true,
+        },
+      };
+
+      parseConfigStub.returns(config);
+
+      await build(config);
+
+      expect(globStub.called).to.be.false;
+      expect(rimrafStub.called).to.be.false;
+
+      expect(shimPluginStub.calledOnce).to.be.true;
+      expect(shimPluginStub.firstCall.args[0]).to.eql({ shims: [shims.REQUIRE_SHIM] });
+
+      expect(esbuildStub.calledOnce).to.be.true;
+      expect(esbuildStub.firstCall.args[0]).to.eql({
+        ...expectedDefaultConfig,
+        ...config.esbuildOptions,
+        entryPoints: entryPoints.map(entryPoint => `${process.cwd()}/${projectDir}/${entryPoint}`),
+        plugins: ['shimPluginStub'],
+      });
+    });
+
+    it('should write output files', async () => {
+      const entryPoints = ['func1/index.ts', 'func2/index.ts'];
+
+      esbuildStub.resolves({
+        outputFiles: [
+          { path: 'some/dir/file1', text: 'content1' },
+          { path: 'some/dir/file2', text: 'content2' },
+        ],
+      });
+
+      const config: BuilderConfigType = {
+        project: projectDir,
+        entryPoints,
+        esbuildOptions: {
+          outdir: 'something',
+        },
+      };
+
+      parseConfigStub.returns(config);
+
+      await build(config);
+
+      const output1 = await fs.readFile('some/dir/file1', 'utf8');
+      const output2 = await fs.readFile('some/dir/file2', 'utf8');
+
+      expect(output1).to.eql('content1');
+      expect(output2).to.eql('content2');
     });
 
     it('should throw NoEntryPointsError when there are no entry points', async () => {
@@ -370,7 +434,7 @@ describe('Builder', () => {
 
       expect(globStub.called).to.be.false;
       expect(rimrafStub.called).to.be.false;
-      expect(dirnamePluginStub.called).to.be.false;
+      expect(shimPluginStub.called).to.be.false;
 
       expect(esbuildStub.calledOnce).to.be.true;
       expect(esbuildStub.firstCall.args[0])
@@ -400,7 +464,7 @@ describe('Builder', () => {
 
       expect(globStub.called).to.be.false;
       expect(rimrafStub.called).to.be.false;
-      expect(dirnamePluginStub.called).to.be.false;
+      expect(shimPluginStub.called).to.be.false;
 
       expect(esbuildStub.calledOnce).to.be.true;
       expect(esbuildStub.firstCall.args[0])
@@ -430,7 +494,7 @@ describe('Builder', () => {
       await watch(config);
 
       expect(rimrafStub.called).to.be.false;
-      expect(dirnamePluginStub.called).to.be.false;
+      expect(shimPluginStub.called).to.be.false;
 
       expect(esbuildStub.calledOnce).to.be.true;
       expect(esbuildStub.firstCall.args[0])
@@ -470,7 +534,7 @@ describe('Builder', () => {
       await watch(config);
 
       expect(rimrafStub.called).to.be.false;
-      expect(dirnamePluginStub.called).to.be.false;
+      expect(shimPluginStub.called).to.be.false;
 
       expect(esbuildStub.calledOnce).to.be.true;
       expect(esbuildStub.firstCall.args[0])
@@ -533,7 +597,7 @@ describe('Builder', () => {
       await watch(config);
 
       expect(rimrafStub.called).to.be.false;
-      expect(dirnamePluginStub.called).to.be.false;
+      expect(shimPluginStub.called).to.be.false;
 
       expect(esbuildStub.calledOnce).to.be.true;
       expect(esbuildStub.firstCall.args[0])
@@ -569,7 +633,8 @@ describe('Builder', () => {
       expect(globStub.called).to.be.false;
       expect(rimrafStub.called).to.be.false;
 
-      expect(dirnamePluginStub.calledOnce).to.be.true;
+      expect(shimPluginStub.calledOnce).to.be.true;
+      expect(shimPluginStub.firstCall.args[0]).to.eql({ shims: [shims.DIRNAME_SHIM] });
 
       expect(esbuildStub.calledOnce).to.be.true;
       expect(esbuildStub.firstCall.args[0])
@@ -578,8 +643,43 @@ describe('Builder', () => {
           ...expectedDefaultConfig,
           ...config.esbuildOptions,
           entryPoints: entryPoints.map(entryPoint => `${process.cwd()}/${projectDir}/${entryPoint}`),
-          metafile: true,
-          plugins: ['dirnamePluginStub'],
+          plugins: ['shimPluginStub'],
+        });
+      expect(typeof esbuildStub.firstCall.args[0].watch.onRebuild).to.eql('function');
+    });
+
+    it('should add require plugin when advancedOptions.enableRequireShim is true', async () => {
+      const entryPoints = ['func1/index.ts', 'func2/index.ts'];
+
+      const config: BuilderConfigType = {
+        project: projectDir,
+        entryPoints,
+        esbuildOptions: {
+          outdir: 'something',
+        },
+        advancedOptions: {
+          enableRequireShim: true,
+        },
+      };
+
+      parseConfigStub.returns(config);
+
+      await watch(config);
+
+      expect(globStub.called).to.be.false;
+      expect(rimrafStub.called).to.be.false;
+
+      expect(shimPluginStub.calledOnce).to.be.true;
+      expect(shimPluginStub.firstCall.args[0]).to.eql({ shims: [shims.REQUIRE_SHIM] });
+
+      expect(esbuildStub.calledOnce).to.be.true;
+      expect(esbuildStub.firstCall.args[0])
+        .excluding(['watch'])
+        .to.eql({
+          ...expectedDefaultConfig,
+          ...config.esbuildOptions,
+          entryPoints: entryPoints.map(entryPoint => `${process.cwd()}/${projectDir}/${entryPoint}`),
+          plugins: ['shimPluginStub'],
         });
       expect(typeof esbuildStub.firstCall.args[0].watch.onRebuild).to.eql('function');
     });
@@ -601,7 +701,7 @@ describe('Builder', () => {
       mockLogger.warn.resetHistory();
       mockLogger.error.resetHistory();
 
-      esbuildStub.firstCall.args[0].watch.onRebuild({});
+      await esbuildStub.firstCall.args[0].watch.onRebuild({});
 
       expect(mockLogger.verbose.called).to.be.false;
       expect(mockLogger.info.called).to.be.false;
@@ -626,12 +726,38 @@ describe('Builder', () => {
       mockLogger.warn.resetHistory();
       mockLogger.error.resetHistory();
 
-      esbuildStub.firstCall.args[0].watch.onRebuild();
+      await esbuildStub.firstCall.args[0].watch.onRebuild();
 
       expect(mockLogger.verbose.called).to.be.false;
       expect(mockLogger.warn.called).to.be.false;
       expect(mockLogger.error.called).to.be.false;
       expect(mockLogger.info.calledOnce).to.be.true;
+    });
+
+    it('should write output files', async () => {
+      const entryPoints = ['func1/index.ts', 'func2/index.ts'];
+
+      const config: BuilderConfigType = {
+        project: projectDir,
+        entryPoints,
+      };
+
+      parseConfigStub.returns(config);
+
+      await watch(config);
+
+      await esbuildStub.firstCall.args[0].watch.onRebuild(undefined, {
+        outputFiles: [
+          { path: 'some/dir/file1', text: 'content1' },
+          { path: 'some/dir/file2', text: 'content2' },
+        ],
+      });
+
+      const output1 = await fs.readFile('some/dir/file1', 'utf8');
+      const output2 = await fs.readFile('some/dir/file2', 'utf8');
+
+      expect(output1).to.eql('content1');
+      expect(output2).to.eql('content2');
     });
 
     it('should throw NoEntryPointsError when there are no entry points', async () => {
