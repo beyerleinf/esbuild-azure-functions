@@ -24,16 +24,17 @@ chaiUse(chaiAsPromised);
 chaiUse(chaiExclude);
 
 const expectedDefaultConfig: BuildOptions = {
-  minify: true,
   bundle: true,
-  sourcemap: false,
-  watch: false,
-  platform: 'node',
-  target: 'node12',
-  splitting: true,
   format: 'esm',
+  minify: true,
   outdir: 'dist',
   outExtension: { '.js': '.mjs' },
+  platform: 'node',
+  sourcemap: false,
+  splitting: true,
+  target: 'node12',
+  watch: false,
+  write: false,
 };
 
 const projectDir = 'my/project';
