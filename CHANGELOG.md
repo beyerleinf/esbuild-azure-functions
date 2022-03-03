@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.1.1](https://github.com/beyerleinf/esbuild-azure-functions/compare/v1.1.0...v1.1.1) (2022-03-03)
+
+
+### Bug Fixes
+
+* Fix default esbuild config ([3d5d121](https://github.com/beyerleinf/esbuild-azure-functions/commit/3d5d1216a5113ebf69aec2611e53e836bf1aea96)), closes [#7](https://github.com/beyerleinf/esbuild-azure-functions/issues/7)
+
 ## [1.1.0](https://github.com/beyerleinf/esbuild-azure-functions/compare/v1.0.0...v1.1.0) (2022-02-25)
 
 
