@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 
-
 import { program } from 'commander';
 import { loadConfig, parseConfig } from './lib/config-loader';
 import { build, watch } from './lib/builder';
