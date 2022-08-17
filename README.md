@@ -105,7 +105,7 @@ main();
 
 ## Config
 
-**Important: By default, the file extension of output files is set to `.mjs`. This is because the Azure Functions runtime requires this [see Microsoft Docs](https://docs.microsoft.com/en-us/azure/azure-functions/functions-reference-node?tabs=v2-v3-v4-export%2Cv2-v3-v4-done%2Cv2%2Cv2-log-custom-telemetry%2Cv2-accessing-request-and-response%2Cwindows-setting-the-node-version#ecmascript-modules). You need to change the `scriptFile` property of your _function.json_ files accordingly.**
+**Important: By default, the file extension of output files is set to `.mjs`. This is because the Azure Functions runtime requires this ([see Microsoft Docs](https://docs.microsoft.com/en-us/azure/azure-functions/functions-reference-node?tabs=v2-v3-v4-export%2Cv2-v3-v4-done%2Cv2%2Cv2-log-custom-telemetry%2Cv2-accessing-request-and-response%2Cwindows-setting-the-node-version#ecmascript-modules)). You need to change the `scriptFile` property of your _function.json_ files accordingly.**
 
 A simple starting config could look like this
 
@@ -199,7 +199,7 @@ A simple starting config could look like this
 
 ### `ReferenceError: [__dirname|__filename] is not defined in ES module scope`
 
-This error stems from the fact that `__dirname` and `__filename` are not present in an ESM environment. To fix this, simply set `advancedOptions.enableDirnameShim` to `true` [see config](#enabledirnameshim)
+This error stems from the fact that `__dirname` and `__filename` are not present in an ESM environment. To fix this, simply set `advancedOptions.enableDirnameShim` to `true` ([see config](#enabledirnameshim))
 
 ### `Error: Dynamic require of "xyz" is not supported`
 
