@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.1.2](https://github.com/beyerleinf/esbuild-azure-functions/compare/v1.1.1...v1.1.2) (2022-08-17)
+
+
+### Bug Fixes
+
+* Add shebang to cli.ts file ([e01f602](https://github.com/beyerleinf/esbuild-azure-functions/commit/e01f602a032a37187be9a4258c9ea3091736f32f)), closes [#9](https://github.com/beyerleinf/esbuild-azure-functions/issues/9)
+
 ### [1.1.1](https://github.com/beyerleinf/esbuild-azure-functions/compare/v1.1.0...v1.1.1) (2022-03-03)
 
 
