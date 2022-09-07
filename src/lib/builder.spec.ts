@@ -14,7 +14,7 @@ import * as esbuild from './helper/esbuild';
 import * as glob from './helper/glob';
 import * as logger from './helper/logger';
 import * as rimraf from './helper/rimraf';
-import { BuilderConfigType } from './models';
+import { BuilderConfigType, WatchConfigType } from './models';
 import * as shimPlugin from './plugins/shim.plugin';
 import * as shims from './shims';
 
@@ -407,7 +407,7 @@ describe('Builder', () => {
 
   describe('watch', () => {
     it('should parse config', async () => {
-      const config: BuilderConfigType = {
+      const config: WatchConfigType = {
         project: projectDir,
         entryPoints: ['func/index.ts'],
         clean: true,
@@ -424,7 +424,7 @@ describe('Builder', () => {
     it('should call esbuild.build with correct config when entryPoints were supplied', async () => {
       const entryPoints = ['func1/index.ts', 'func2/index.ts'];
 
-      const config: BuilderConfigType = {
+      const config: WatchConfigType = {
         project: projectDir,
         entryPoints,
       };
@@ -451,7 +451,7 @@ describe('Builder', () => {
     it('should call esbuild.build with correct config when esbuildOptions were supplied', async () => {
       const entryPoints = ['func1/index.ts', 'func2/index.ts'];
 
-      const config: BuilderConfigType = {
+      const config: WatchConfigType = {
         project: projectDir,
         entryPoints,
         esbuildOptions: {
@@ -480,7 +480,7 @@ describe('Builder', () => {
     });
 
     it('should glob all index.ts files when no entryPoints were supplied', async () => {
-      const config: BuilderConfigType = {
+      const config: WatchConfigType = {
         project: projectDir,
         esbuildOptions: {
           outdir: 'something',
@@ -519,7 +519,7 @@ describe('Builder', () => {
     });
 
     it('should glob all index.ts files when no entryPoints but excludes were supplied', async () => {
-      const config: BuilderConfigType = {
+      const config: WatchConfigType = {
         project: projectDir,
         exclude: ['dir1'],
         esbuildOptions: {
@@ -562,7 +562,7 @@ describe('Builder', () => {
       const entryPoints = ['func1/index.ts', 'func2/index.ts'];
       const outdir = 'someOutdir';
 
-      const config: BuilderConfigType = {
+      const config: WatchConfigType = {
         project: projectDir,
         entryPoints,
         clean: true,
@@ -582,7 +582,7 @@ describe('Builder', () => {
     it('should fix outdir when only one entry point is found', async () => {
       const outdir = 'some/outdir';
 
-      const config: BuilderConfigType = {
+      const config: WatchConfigType = {
         project: projectDir,
         exclude: ['dir1'],
         esbuildOptions: {
@@ -616,7 +616,7 @@ describe('Builder', () => {
     it('should add dirname plugin when advancedOptions.enableDirnameShim is true', async () => {
       const entryPoints = ['func1/index.ts', 'func2/index.ts'];
 
-      const config: BuilderConfigType = {
+      const config: WatchConfigType = {
         project: projectDir,
         entryPoints,
         esbuildOptions: {
@@ -652,7 +652,7 @@ describe('Builder', () => {
     it('should add require plugin when advancedOptions.enableRequireShim is true', async () => {
       const entryPoints = ['func1/index.ts', 'func2/index.ts'];
 
-      const config: BuilderConfigType = {
+      const config: WatchConfigType = {
         project: projectDir,
         entryPoints,
         esbuildOptions: {
@@ -688,7 +688,7 @@ describe('Builder', () => {
     it('should call logger.error when onRebuild gets called with error', async () => {
       const entryPoints = ['func1/index.ts', 'func2/index.ts'];
 
-      const config: BuilderConfigType = {
+      const config: WatchConfigType = {
         project: projectDir,
         entryPoints,
       };
@@ -713,7 +713,7 @@ describe('Builder', () => {
     it('should call logger.info when onRebuild gets called without error', async () => {
       const entryPoints = ['func1/index.ts', 'func2/index.ts'];
 
-      const config: BuilderConfigType = {
+      const config: WatchConfigType = {
         project: projectDir,
         entryPoints,
       };
@@ -738,7 +738,7 @@ describe('Builder', () => {
     it('should write output files', async () => {
       const entryPoints = ['func1/index.ts', 'func2/index.ts'];
 
-      const config: BuilderConfigType = {
+      const config: WatchConfigType = {
         project: projectDir,
         entryPoints,
       };
@@ -761,8 +761,33 @@ describe('Builder', () => {
       expect(output2).to.eql('content2');
     });
 
+    it('should call options.onRebuild when supplied', async () => {
+      const entryPoints = ['func1/index.ts', 'func2/index.ts'];
+
+      const onRebuildCallback = sinon.spy();
+
+      const config: WatchConfigType = {
+        project: projectDir,
+        entryPoints,
+        onRebuild: onRebuildCallback,
+      };
+
+      parseConfigStub.returns(config);
+
+      await watch(config);
+
+      await esbuildStub.firstCall.args[0].watch.onRebuild(undefined, {
+        outputFiles: [
+          { path: 'some/dir/file1', text: 'content1' },
+          { path: 'some/dir/file2', text: 'content2' },
+        ],
+      });
+
+      expect(onRebuildCallback.calledOnce).to.be.true;
+    });
+
     it('should throw NoEntryPointsError when there are no entry points', async () => {
-      const config: BuilderConfigType = {
+      const config: WatchConfigType = {
         project: projectDir,
         exclude: ['dir1'],
         esbuildOptions: {
@@ -778,7 +803,7 @@ describe('Builder', () => {
     });
 
     it('should throw ProjectDirectoryNotFoundError when project dir is invalid', async () => {
-      const config: BuilderConfigType = {
+      const config: WatchConfigType = {
         project: 'some/dir',
         entryPoints: ['func1/index.ts'],
       };

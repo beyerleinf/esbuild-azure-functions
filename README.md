@@ -26,6 +26,7 @@ This tool is designed to work with Azure Functions written in TypeScript. It use
   - [`advancedOptions`](#advancedoptions)
     - [`enableDirnameShim`](#enabledirnameshim)
     - [`enableRequireShim`](#enablerequireshim)
+  - [`onRebuild`](#onrebuild)
 - [Common errors](#common-errors)
   - [`ReferenceError: [__dirname|__filename] is not defined in ES module scope`](#referenceerror-__dirname__filename-is-not-defined-in-es-module-scope)
   - [`Error: Dynamic require of "xyz" is not supported`](#error-dynamic-require-of-xyz-is-not-supported)
@@ -194,6 +195,12 @@ A simple starting config could look like this
 **Required:** no  
 **Type:** `boolean`  
 **Description:** Enables a plugin that patches `require` using `import.meta.url` at the top of every output file because esbuild doesn't support converting CJS requires to ESM imports.
+
+### `onRebuild`
+
+**Required:** no  
+**Type:** `function`  
+**Description:** Callback that's called for every rebuild. Only for [`watch`](#watch-mode).
 
 ## Common errors
 

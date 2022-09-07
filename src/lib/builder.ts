@@ -5,7 +5,7 @@ import { parseConfig } from './config-loader';
 import { NoEntryPointsError, ProjectDirectoryNotFoundError } from './errors';
 import { createLogger, glob, Logger, rimraf } from './helper';
 import * as esbuild from './helper/esbuild';
-import { BuilderConfigType } from './models';
+import { BuilderConfigType, WatchConfigType } from './models';
 import { shimPlugin } from './plugins';
 import { DIRNAME_SHIM, REQUIRE_SHIM } from './shims';
 
@@ -40,7 +40,7 @@ export async function build(inputConfig: BuilderConfigType) {
   logger.info(`⚡ Build complete. Took ${Date.now() - start}ms`);
 }
 
-export async function watch(inputConfig: BuilderConfigType) {
+export async function watch(inputConfig: WatchConfigType) {
   const config = parseConfig(inputConfig);
   const logger = createLogger(config.logLevel);
 
@@ -57,10 +57,12 @@ export async function watch(inputConfig: BuilderConfigType) {
 
         logger.info('⚡ Rebuild succeeded');
       }
+
+      inputConfig.onRebuild ? inputConfig.onRebuild(error, result) : false;
     },
   };
 
-  await esbuild.build(esbuildOptions);
+  return esbuild.build(esbuildOptions);
 }
 
 async function _prepare(inputConfig: BuilderConfigType, logger: Logger): Promise<BuildOptions> {

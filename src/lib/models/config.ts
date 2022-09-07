@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { z } from 'zod';
+import { BuildFailure, BuildResult } from './esbuild';
 
 const BuilderLogLevel = z.enum(['verbose', 'info', 'warn', 'error', 'off']);
 
@@ -21,6 +22,13 @@ export const BuilderConfig = z.object({
   advancedOptions: AdvancedBuilderOptions.optional(),
 });
 
+export const WatchConfig = BuilderConfig.merge(
+  z.object({
+    onRebuild: z.function(z.tuple([BuildFailure.nullable(), BuildResult.nullable()])).optional(),
+  })
+);
+
 export type BuilderConfigType = z.infer<typeof BuilderConfig>;
+export type WatchConfigType = z.infer<typeof WatchConfig>;
 export type BuilderLogLevelType = z.infer<typeof BuilderLogLevel>;
 export type AdvancedBuilderOptionsType = z.infer<typeof AdvancedBuilderOptions>;
