@@ -6,6 +6,7 @@
     "declaration": true,
     "sourceMap": true,
     "esModuleInterop": true,
+    "lib": ["es2019"]
   },
   "include": ["src/**/*.ts"],
   "exclude": ["build", "node_modules", "src/**/*.spec.ts"]

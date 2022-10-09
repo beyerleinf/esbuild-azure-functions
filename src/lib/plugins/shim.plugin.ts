@@ -1,12 +1,15 @@
 import { Plugin, PluginBuild } from 'esbuild';
 import * as path from 'path';
+import { Shim, ShimImport } from '../types/shim';
 
-type ShimPluginOptions = { shims: string[] };
+type ShimPluginOptions = { shims: Shim[] };
 
 export const shimPlugin = ({ shims }: ShimPluginOptions): Plugin => ({
   name: 'shim',
   setup: (build: PluginBuild) => {
     build.initialOptions.write = false;
+
+    const builtShims = buildShims(shims);
 
     build.onEnd(result => {
       const outputs = [];
@@ -18,7 +21,7 @@ export const shimPlugin = ({ shims }: ShimPluginOptions): Plugin => ({
         } else {
           outputs.push({
             ...file,
-            text: [shims.join('\n'), file.text].join('\n'),
+            text: [builtShims, file.text].join('\n'),
           });
         }
       }
@@ -27,3 +30,18 @@ export const shimPlugin = ({ shims }: ShimPluginOptions): Plugin => ({
     });
   },
 });
+
+const buildShims = (shims: Shim[]) => {
+  const importStatements = shims.flatMap(({ imports }) => imports.map(shimImport => buildImportStatement(shimImport)));
+  const codeParts = shims.flatMap(({ code }) => code);
+
+  return [...importStatements, ...codeParts].join('\n');
+};
+
+const buildImportStatement = (shimImport: ShimImport) => {
+  if (shimImport.isDefault) {
+    return `import ${shimImport.as} from '${shimImport.from}';`;
+  } else {
+    return `import * as ${shimImport.as} from '${shimImport.from}';`;
+  }
+};
