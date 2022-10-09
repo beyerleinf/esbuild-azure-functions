@@ -50,6 +50,12 @@ describe('ShimPlugin', () => {
             return 'initial content';
           },
         },
+        {
+          path: 'some/path/file.js.map',
+          get text() {
+            return 'initial sourcemap content';
+          },
+        },
       ],
     };
 
@@ -59,6 +65,10 @@ describe('ShimPlugin', () => {
       {
         path: 'some/path/file.js',
         text: [shims.join('\n'), 'initial content'].join('\n'),
+      },
+      {
+        path: 'some/path/file.js.map',
+        text: 'initial sourcemap content',
       },
     ]);
   });
