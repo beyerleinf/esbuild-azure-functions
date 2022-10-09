@@ -10,6 +10,7 @@ const main = async () => {
     entryPoints: ['test-func/index.ts'],
     esbuildOptions: {
       outdir: 'testout',
+      sourcemap: true,
     },
     logLevel: 'verbose',
     clean: true,
