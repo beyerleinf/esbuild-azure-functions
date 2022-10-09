@@ -1,6 +1,7 @@
 import { expect } from 'chai';
 import { PluginBuild } from 'esbuild';
 import * as sinon from 'sinon';
+import { Shim } from '../types/shim';
 import { shimPlugin } from './shim.plugin';
 
 describe('ShimPlugin', () => {
@@ -35,9 +36,14 @@ describe('ShimPlugin', () => {
       write: true,
     };
 
-    const shims: string[] = [
-      "import module as __import_MODULE from 'module'; some content; ",
-      "import other as __import_OTHER from 'other'; other content; ",
+    const shims: Shim[] = [
+      {
+        imports: [
+          { isDefault: true, as: '__import_MODULE', from: 'some content' },
+          { isDefault: false, as: '__import_OTHER', from: 'other content' },
+        ],
+        code: 'console.log("hello world");',
+      },
     ];
 
     shimPlugin({ shims }).setup({ ...mockBuild, initialOptions } as unknown as PluginBuild);
@@ -61,10 +67,14 @@ describe('ShimPlugin', () => {
 
     mockBuild.onEnd.firstCall.args[0](args);
 
+    const expectedShim = `import __import_MODULE from 'some content';
+import * as __import_OTHER from 'other content';
+console.log("hello world");`;
+
     expect(args.outputFiles).to.eql([
       {
         path: 'some/path/file.js',
-        text: [shims.join('\n'), 'initial content'].join('\n'),
+        text: [expectedShim, 'initial content'].join('\n'),
       },
       {
         path: 'some/path/file.js.map',

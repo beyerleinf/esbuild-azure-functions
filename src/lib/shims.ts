@@ -1,3 +1,5 @@
+import { Shim } from './types/shim';
+
 const prefix = '__azf_shim_import';
 
 /**
@@ -5,19 +7,21 @@ const prefix = '__azf_shim_import';
  *
  * @see https://nodejs.org/docs/latest/api/esm.html#no-__filename-or-__dirname
  */
-export const DIRNAME_SHIM = `
-import ${prefix}_PATH from 'path';
-import ${prefix}_URL from 'url'
-
-const __dirname = ${prefix}_PATH.dirname(${prefix}_URL.fileURLToPath(import.meta.url));
-const __filename = ${prefix}_URL.fileURLToPath(import.meta.url);
-`;
+const dirnameShimCode = `const __dirname = ${prefix}_PATH.dirname(${prefix}_URL.fileURLToPath(import.meta.url));
+const __filename = ${prefix}_URL.fileURLToPath(import.meta.url);`;
+export const DIRNAME_SHIM: Shim = {
+  imports: [
+    { isDefault: true, as: `${prefix}_PATH`, from: 'path' },
+    { isDefault: true, as: `${prefix}_URL`, from: 'url' },
+  ],
+  code: dirnameShimCode,
+};
 
 /**
  * A shim for require because esbuild cannot convert CJS requires to ESM imports.
  */
-export const REQUIRE_SHIM = `
-import ${prefix}_MODULE from 'module';
-
-const require = ${prefix}_MODULE.createRequire(import.meta.url);
-`;
+const requireShimCode = `const require = ${prefix}_MODULE.createRequire(import.meta.url);`;
+export const REQUIRE_SHIM: Shim = {
+  imports: [{ isDefault: true, as: `${prefix}_MODULE`, from: 'module' }],
+  code: requireShimCode,
+};
