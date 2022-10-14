@@ -4,13 +4,13 @@ const main = async () => {
   await build({
     project: '.',
     advancedOptions: {
-      enableDirnameShim: true,
-      enableRequireShim: true,
+      enableDirnameShim: false,
+      enableRequireShim: false,
     },
-    entryPoints: ['test-func/index.ts'],
     esbuildOptions: {
       outdir: 'testout',
       sourcemap: true,
+      minify: false,
     },
     logLevel: 'verbose',
     clean: true,
