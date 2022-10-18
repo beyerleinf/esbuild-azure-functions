@@ -1,264 +1,33 @@
 # esbuild-azure-functions <!-- omit in toc -->
 
-> A builder for Azure Function powered by esbuild.
+> A ✨blazingly fast✨ builder for Azure Function powered by esbuild.
 
-[![Maintenance](https://img.shields.io/maintenance/yes/2022)](https://github.com/beyerleinf/esbuild-azure-functions) [![GitHub Workflow Status](https://img.shields.io/github/workflow/status/beyerleinf/esbuild-azure-functions/CI)](https://github.com/beyerleinf/esbuild-azure-functions/actions/workflows/ci.yml) [![Snyk Vulnerabilities for GitHub Repo](https://img.shields.io/snyk/vulnerabilities/github/beyerleinf/esbuild-azure-functions)](https://github.com/beyerleinf/esbuild-azure-functions) [![Codecov](https://img.shields.io/codecov/c/github/beyerleinf/esbuild-azure-functions)](https://app.codecov.io/gh/beyerleinf/esbuild-azure-functions) [![npm](https://img.shields.io/npm/v/esbuild-azure-functions)](https://www.npmjs.com/package/esbuild-azure-functions) [![npm](https://img.shields.io/npm/dm/esbuild-azure-functions)](https://www.npmjs.com/package/esbuild-azure-functions) [![GitHub](https://img.shields.io/github/license/beyerleinf/esbuild-azure-functions)](https://github.com/beyerleinf/esbuild-azure-functions/blob/main/LICENSE)
+[![Maintenance](https://img.shields.io/maintenance/yes/2023)](https://github.com/beyerleinf/esbuild-azure-functions) [![GitHub Workflow Status](https://img.shields.io/github/workflow/status/beyerleinf/esbuild-azure-functions/CI)](https://github.com/beyerleinf/esbuild-azure-functions/actions/workflows/ci.yml) [![Snyk Vulnerabilities for GitHub Repo](https://img.shields.io/snyk/vulnerabilities/github/beyerleinf/esbuild-azure-functions)](https://github.com/beyerleinf/esbuild-azure-functions) [![Codecov](https://img.shields.io/codecov/c/github/beyerleinf/esbuild-azure-functions)](https://app.codecov.io/gh/beyerleinf/esbuild-azure-functions) [![npm](https://img.shields.io/npm/v/esbuild-azure-functions)](https://www.npmjs.com/package/esbuild-azure-functions) [![npm](https://img.shields.io/npm/dm/esbuild-azure-functions)](https://www.npmjs.com/package/esbuild-azure-functions) [![GitHub](https://img.shields.io/github/license/beyerleinf/esbuild-azure-functions)](https://github.com/beyerleinf/esbuild-azure-functions/blob/main/LICENSE) [![GitHub package.json dependency version (prod)](https://img.shields.io/github/package-json/dependency-version/beyerleinf/esbuild-azure-functions/esbuild)](https://esbuild.github.io)
 
 This tool is designed to work with Azure Functions written in TypeScript. It uses [esbuild](https://esbuild.github.io/) to create crazy small bundles. This is especially helpful with cold starts and deployment duration.
 
-**_Please read this readme to get started. It contains important information._**
-
 # Table of Contents <!-- omit in toc -->
 
-- [Build](#build)
-  - [From the CLI](#from-the-cli)
-  - [Programmatically](#programmatically)
-- [Watch mode](#watch-mode)
-  - [From the CLI](#from-the-cli-1)
-  - [Programmatically](#programmatically-1)
-- [Config](#config)
-  - [`project`](#project)
-  - [`entryPoints`](#entrypoints)
-  - [`exclude`](#exclude)
-  - [`clean`](#clean)
-  - [`logLevel`](#loglevel)
-  - [`esbuildOptions`](#esbuildoptions)
-  - [`advancedOptions`](#advancedoptions)
-    - [`enableDirnameShim`](#enabledirnameshim)
-    - [`enableRequireShim`](#enablerequireshim)
-  - [`onRebuild`](#onrebuild)
-- [Common errors](#common-errors)
-  - [`ReferenceError: [__dirname|__filename] is not defined in ES module scope`](#referenceerror-__dirname__filename-is-not-defined-in-es-module-scope)
-  - [`Error: Dynamic require of "xyz" is not supported`](#error-dynamic-require-of-xyz-is-not-supported)
+- [Documentation](#documentation)
 - [Benchmark](#benchmark)
   - [Package size](#package-size)
   - [Build time](#build-time)
+- [Contributing](#contributing)
 
-## Build
+## Documentation
 
-### From the CLI
-
-By default, _esbuild-azure-functions_ expects a config file called `esbuild-azure-functions.config.json` in the directory you are running it from. You can specify a different config location with the `-c | --config` flag. Refer to the [Config section](#config) for config options.
-
-```
-npx esbuild-azure-functions [-c <config location>]
-```
-
-### Programmatically
-
-Install _esbuild-azure-functions_ into your project
-
-```
-npm i --save-dev esbuild-azure-functions
-```
-
-```ts
-import { build, BuilderConfigType } from 'esbuild-azure-functions';
-
-const config: BuilderConfigType = {
-  project: process.cwd(),
-  esbuildOptions: {
-    outdir: 'MyCustomOutDir',
-  },
-};
-
-const main = async () => {
-  await build(config);
-};
-
-main();
-```
-
-## Watch mode
-
-### From the CLI
-
-By default, _esbuild-azure-functions_ expects a config file called `esbuild-azure-functions.config.json` in the directory you are running it from. You can specify a different config location with the `-c | --config` flag. Refer to the [Config section](#config) for config options.
-
-```
-npx esbuild-azure-functions --watch [-c <config location>]
-```
-
-### Programmatically
-
-Install _esbuild-azure-functions_ into your project
-
-```
-npm i --save-dev esbuild-azure-functions
-```
-
-```ts
-import { watch, BuilderConfigType } from 'esbuild-azure-functions';
-
-const config: BuilderConfigType = {
-  project: process.cwd(),
-  esbuildOptions: {
-    outdir: 'MyCustomOutDir',
-  },
-};
-
-const main = async () => {
-  await watch(config);
-};
-
-main();
-```
-
-## Config
-
-**Important: By default, the file extension of output files is set to `.mjs`. This is because the Azure Functions runtime requires this ([see Microsoft Docs](https://docs.microsoft.com/en-us/azure/azure-functions/functions-reference-node?tabs=v2-v3-v4-export%2Cv2-v3-v4-done%2Cv2%2Cv2-log-custom-telemetry%2Cv2-accessing-request-and-response%2Cwindows-setting-the-node-version#ecmascript-modules)). You need to change the `scriptFile` property of your _function.json_ files accordingly.**
-
-A simple starting config could look like this
-
-```json
-{
-  "project": ".",
-  "esbuildOptions": {
-    "outdir": "MyCustomOutDir"
-  }
-}
-```
-
-### `project`
-
-**Required:** yes  
-**Type:** `string`  
-**Description:** The root folder of the Azure Functions project you want to build.  
-**Example:** `.`  
-**Default:** `undefined`
-
-### `entryPoints`
-
-**Required:** no  
-**Type:** `string[]`  
-**Description:** Specify custom entry points if you don't want _esbuild-azure-functions_ to search for **index.ts** files in the `project` folder.  
-**Example:** `[ "my-functions/entry.ts" ]`  
-**Default:** `undefined`
-
-### `exclude`
-
-**Required:** no  
-**Type:** `string[]`  
-**Description:** Specify directories as glob patterns to exclude when searching for **index.ts** files.  
-**Example:** `[ "**/utils/**" ]`  
-**Default:** `undefined`
-
-### `clean`
-
-**Required:** no  
-**Type:** `boolean`  
-**Description:** Specify whether _esbuild-azure-functions_ should the delete the output directory before building.  
-**Default:** `false`
-
-### `logLevel`
-
-**Required:** no  
-**Type:** `"off" | "error" | "warn" | "info" | "verbose"`  
-**Description:** Specify the verbosity of log messages.  
-**Default:** `"error"`
-
-### `esbuildOptions`
-
-**Required:** no  
-**Type:** [Refer to the official docs](https://esbuild.github.io/api/#build-api)  
-**Description:** Customize the default esbuild config used.  
-**Default:**
-
-```ts
-{
-  minify: true,
-  bundle: true,
-  sourcemap: false,
-  watch: false,
-  platform: 'node',
-  splitting: true,
-  format: 'esm',
-  outdir: 'dist',
-  outExtension: { '.js': '.mjs' },
-}
-```
-
-### `advancedOptions`
-
-**Required:** no  
-**Type:** `object`  
-**Description:** Enable some advanced options depending on your environment
-
-#### `enableDirnameShim`
-
-**Required:** no  
-**Type:** `boolean`  
-**Description:** Enables a plugin that patches `__dirname` and `__filename` using `import.meta.url` ([see official Node.js docs](https://nodejs.org/docs/latest/api/esm.html#no-__filename-or-__dirname)) at the top of every output file because they are not available in ESM and esbuild doesn't shim them itself.
-
-#### `enableRequireShim`
-
-**Required:** no  
-**Type:** `boolean`  
-**Description:** Enables a plugin that patches `require` using `import.meta.url` at the top of every output file because esbuild doesn't support converting CJS requires to ESM imports.
-
-### `onRebuild`
-
-**Required:** no  
-**Type:** `function`  
-**Description:** Callback that's called for every rebuild. Only for [`watch`](#watch-mode).
-
-## Common errors
-
-### `ReferenceError: [__dirname|__filename] is not defined in ES module scope`
-
-This error stems from the fact that `__dirname` and `__filename` are not present in an ESM environment. To fix this, simply set `advancedOptions.enableDirnameShim` to `true` ([see config](#enabledirnameshim))
-
-### `Error: Dynamic require of "xyz" is not supported`
-
-This error stems from esbuild not being able to convert CJS requires to ESM imports. This happens mostly (from what I've seen) with Node.js internals (like http, crypto and so on). To fix this issue you have two options:
-
-1. Turn code splitting off and change the format to `cjs` **(not recommended because it increases the bundle size exponentially)**
-
-```js
-// build.mjs
-
-await build({
-  project: '.',
-  clean: true,
-  esbuildOptions: {
-    splitting: false,
-    format: 'cjs',
-    outExtension: {},
-  },
-});
-```
-
-2. Use `@esbuild-plugins/esm-externals` with the following setup:
-
-```js
-// build.mjs
-
-import { EsmExternalsPlugin } from '@esbuild-plugins/esm-externals';
-import { build } from 'esbuild-azure-functions';
-import repl from 'repl';
-
-await build({
-  project: '.',
-  exclude: ['**/utils/**'],
-  clean: true,
-  logLevel: 'verbose',
-  esbuildOptions: {
-    target: 'node12',
-    plugins: [EsmExternalsPlugin({ externals: [...repl._builtinLibs] })],
-  },
-});
-```
-
-If there are other modules causing issues for you, just add them to the `externals` options of `EsmExternalsPlugin`.
-
-Sometimes, however, there are packages that want to patch `require` (like [`diagnostic-channel`](https://www.npmjs.com/package/diagnostic-channel)). In that case, you have to use [`config.enableRequireShim`](#enablerequireshim).
+You find the the complete documentation at [https://beyerleinf.gitbook.io/esbuild-azure-functions/](https://beyerleinf.gitbook.io/esbuild-azure-functions/).
 
 ## Benchmark
 
 ### Package size
 
-![package size chart](.docs/size-chart_win.png)
+![package size chart](.docs/size-chart.png)
 
 ### Build time
 
 ![package size chart](.docs/speed-chart.png)
+
+## Contributing
+
+You want to contribute? Nice! Be sure to check out [CONTRIBUTNG.md](CONTRIBUTING.md) on how to get started.
