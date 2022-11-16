@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.3.0](https://github.com/beyerleinf/esbuild-azure-functions/compare/v1.2.0...v1.3.0) (2022-11-16)
+
+
+### Features
+
+* **shim-plugin:** Optimize code generation ([791055a](https://github.com/beyerleinf/esbuild-azure-functions/commit/791055ae3574d879b45ad205e41701f0d2d59905)), closes [#15](https://github.com/beyerleinf/esbuild-azure-functions/issues/15)
+
+
+### Bug Fixes
+
+* **shim-plugin:** Skip source maps when shimming ([7393712](https://github.com/beyerleinf/esbuild-azure-functions/commit/73937128686605e4125655f370e75dee376e814b)), closes [#11](https://github.com/beyerleinf/esbuild-azure-functions/issues/11)
+
 ## [1.2.0](https://github.com/beyerleinf/esbuild-azure-functions/compare/v1.1.2...v1.2.0) (2022-09-07)
 
 
