@@ -5,9 +5,9 @@ on:
       - '**'
     tags-ignore:
       - 'v*'
-    pull_request:
-      branches:
-        - 'main'
+  pull_request:
+    branches:
+      - 'main'
 
 jobs:
   build:
@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        node-version: [14.x, 15.x, 16.x, 17.x, 18.x]
+        node-version: [14.x, 15.x, 16.x, 17.x, 18.x, 19.x]
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -25,10 +25,14 @@ jobs:
           node-version: ${{ matrix.node-version }}
           cache: 'npm'
           cache-dependency-path: '**/package-lock.json'
-      - run: npm ci
-      - run: npm run compile
-      - run: npm run test
-      - run: npm run lint
+      - name: Install dependencies
+        run: npm ci
+      - name: Build
+        run: npm run compile
+      - name: Test
+        run: npm run test
+      - name: Lint
+        run: npm run lint
       - name: Publish Code Coverage
         uses: codecov/codecov-action@v3
         with:
