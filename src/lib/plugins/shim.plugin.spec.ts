@@ -82,4 +82,26 @@ console.log("hello world");`;
       },
     ]);
   });
+
+  it('should not fail when outputFiles is undefined', () => {
+    const initialOptions = {
+      write: true,
+    };
+
+    const shims: Shim[] = [
+      {
+        imports: [
+          { isDefault: true, as: '__import_MODULE', from: 'some content' },
+          { isDefault: false, as: '__import_OTHER', from: 'other content' },
+        ],
+        code: 'console.log("hello world");',
+      },
+    ];
+
+    shimPlugin({ shims }).setup({ ...mockBuild, initialOptions } as unknown as PluginBuild);
+
+    const args = {};
+
+    mockBuild.onEnd.firstCall.args[0](args);
+  });
 });

@@ -1,6 +1,12 @@
 {
-  "extends": "./node_modules/gts/",
+  "extends": ["eslint:recommended", "plugin:@typescript-eslint/recommended"],
+  "parser": "@typescript-eslint/parser",
+  "plugins": ["@typescript-eslint"],
+  "root": true,
   "env": {
     "mocha": true
+  },
+  "rules": {
+    "@typescript-eslint/explicit-function-return-type": "off"
   }
 }

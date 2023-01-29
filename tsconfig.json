@@ -1,12 +1,11 @@
 {
-  "extends": "./node_modules/gts/tsconfig-google.json",
   "compilerOptions": {
     "rootDir": ".",
     "outDir": "build",
     "declaration": true,
     "sourceMap": true,
     "esModuleInterop": true,
-    "lib": ["es2019"]
+    "lib": ["es2019", "DOM"]
   },
   "include": ["src/**/*.ts"],
   "exclude": ["build", "node_modules", "src/**/*.spec.ts"]

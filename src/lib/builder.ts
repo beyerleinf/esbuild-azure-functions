@@ -32,7 +32,7 @@ export async function build(inputConfig: BuilderConfigType) {
 
   const result = await esbuild.build(esbuildOptions);
 
-  for (const file of result.outputFiles!) {
+  for (const file of result.outputFiles || []) {
     await fs.outputFile(file.path, file.text);
   }
 
@@ -45,7 +45,7 @@ export async function watch(inputConfig: WatchConfigType) {
 
   const esbuildOptions = await _prepare(inputConfig, logger);
 
-  esbuildOptions.plugins!.push(onRebuildPlugin({ callback: config.onRebuild, logLevel: config.logLevel }));
+  esbuildOptions.plugins?.push(onRebuildPlugin({ callback: config.onRebuild, logLevel: config.logLevel }));
 
   const ctx = await esbuild.context(esbuildOptions);
 
@@ -90,11 +90,13 @@ async function _prepare(inputConfig: BuilderConfigType, logger: Logger): Promise
     plugins: _getPlugins(inputConfig),
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
   await _clean(logger, esbuildOptions.outdir!, inputConfig.clean);
 
   // fix outdir when only one entry point exists because esbuild
   // doesn't create the correct folder structure
   if (isSingleEntryPoint(entryPoints)) {
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     esbuildOptions.outdir = path.join(esbuildOptions.outdir!, path.basename(path.dirname(entryPoints[0])));
   }
 
