@@ -3,7 +3,6 @@
   "version": "1.3.0",
   "description": "A blazingly fast builder for Azure Functions powered by esbuild.",
   "main": "build/src/index.js",
-  "module": "build/src/index.mjs",
   "types": "build/src/index.dts",
   "bin": {
     "esbuild-azure-functions": "build/src/cli.js"
