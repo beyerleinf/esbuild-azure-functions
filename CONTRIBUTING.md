@@ -1,6 +1,6 @@
 # How to contribute
 
-Nice to see you here and I'm glad you took an interest in contributing to this project. All kinds of contributions are welcome, including:
+Nice to see you here! I'm glad you took an interest in contributing to this project. All kinds of contributions are welcome, including:
 
 - Reporting bugs
 - Fixing bugs
@@ -34,7 +34,7 @@ But **please** make sure that this hasn't already been requested!
 
 You want to fix a bug? Thank you 🙏 Here's how to get started.
 
-### Getting started on development
+### Getting started with development
 
 There are only a couple of commands you need to use:
 
@@ -51,13 +51,13 @@ These packages are important to know about:
 
 ### Submitting your changes
 
-We use [GitHub Flow](https://docs.github.com/en/get-started/quickstart/github-flow), so everything happens trough Pull Requests (PRs).
+We use [GitHub Flow](https://docs.github.com/en/get-started/quickstart/github-flow), so everything happens through Pull Requests (PRs).
 
 - Fork the repo and create your branch from `main`
-- If you've added code that needs test, please also add tests
+- If you've added code that needs testing, please also add tests
 - Ensure the CI pipeline passes (including build, test and lint)
 - Open the PR 😊
 
 ## License
 
-By contributing, you agree that your contributions will be licensed under its [MIT License](https://github.com/beyerleinf/esbuild-azure-functions/blob/main/LICENSE).
+By contributing to the project, you agree that your contributions will be licensed under its [MIT License](https://github.com/beyerleinf/esbuild-azure-functions/blob/main/LICENSE).
