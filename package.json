@@ -73,6 +73,6 @@
     "sinon": "^15.0.1",
     "source-map-support": "^0.5.21",
     "ts-node": "^10.5.0",
-    "typescript": "4.4.4"
+    "typescript": "^4.9.4"
   }
 }
