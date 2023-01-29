@@ -9,7 +9,7 @@ export class NoEntryPointsError extends Error {
       or supply entry points manually through config.entryPoints.`)
     );
 
-    this.name = this.constructor.name;
+    this.name = NoEntryPointsError.name;
 
     Error.captureStackTrace(this, this.constructor);
   }

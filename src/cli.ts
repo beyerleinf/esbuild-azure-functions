@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { program } from 'commander';
-import { loadConfig, parseConfig } from './lib/config-loader';
+import { loadConfig, parseConfig, parseWatchConfig } from './lib/config-loader';
 import { build, watch } from './lib/builder';
 import fs from 'fs-extra';
 
@@ -20,11 +20,12 @@ const main = async () => {
   const options = program.opts();
 
   const file = await loadConfig(options.config);
-  const config = parseConfig(file);
 
   if (!options.watch) {
+    const config = parseConfig(file);
     await build(config);
   } else {
+    const config = parseWatchConfig(file);
     await watch(config);
   }
 };

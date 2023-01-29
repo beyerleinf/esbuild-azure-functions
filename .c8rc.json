@@ -1,7 +1,7 @@
 {
   "extends": "@istanbuljs/nyc-config-typescript",
   "include": ["src/**/*.ts"],
-  "exclude": ["src/**/*.spec.ts", "build"],
+  "exclude": ["src/**/*.spec.ts", "build", "src/lib/types/**/*", "src/cli.ts", "src/index.ts"],
   "reporter": ["text-summary", "html", "json"],
   "all": true
 }

@@ -11,7 +11,7 @@ export class InvalidConfigError extends Error {
       )
     );
 
-    this.name = this.constructor.name;
+    this.name = InvalidConfigError.name;
 
     Error.captureStackTrace(this, this.constructor);
   }

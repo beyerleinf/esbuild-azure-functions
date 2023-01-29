@@ -1,12 +1,12 @@
 import { BuildOptions } from 'esbuild';
 import fs from 'fs-extra';
 import path from 'path';
-import { parseConfig } from './config-loader';
+import { parseConfig, parseWatchConfig } from './config-loader';
 import { NoEntryPointsError, ProjectDirectoryNotFoundError } from './errors';
 import { createLogger, glob, Logger, rimraf } from './helper';
 import * as esbuild from './helper/esbuild';
 import { BuilderConfigType, WatchConfigType } from './models';
-import { shimPlugin } from './plugins';
+import { onRebuildPlugin, shimPlugin } from './plugins';
 import { DIRNAME_SHIM, REQUIRE_SHIM } from './shims';
 
 const defaultConfig: BuildOptions = {
@@ -18,8 +18,7 @@ const defaultConfig: BuildOptions = {
   platform: 'node',
   sourcemap: false,
   splitting: true,
-  target: 'node12',
-  watch: false,
+  target: 'node14',
   write: false,
 };
 
@@ -41,28 +40,16 @@ export async function build(inputConfig: BuilderConfigType) {
 }
 
 export async function watch(inputConfig: WatchConfigType) {
-  const config = parseConfig(inputConfig);
+  const config = parseWatchConfig(inputConfig);
   const logger = createLogger(config.logLevel);
 
   const esbuildOptions = await _prepare(inputConfig, logger);
 
-  esbuildOptions.watch = {
-    onRebuild: async (error, result) => {
-      if (error) {
-        logger.error('❌ Rebuild failed');
-      } else {
-        for (const file of result?.outputFiles || []) {
-          await fs.outputFile(file.path, file.text);
-        }
+  esbuildOptions.plugins!.push(onRebuildPlugin({ callback: config.onRebuild, logLevel: config.logLevel }));
 
-        logger.info('⚡ Rebuild succeeded');
-      }
+  const ctx = await esbuild.context(esbuildOptions);
 
-      inputConfig.onRebuild ? inputConfig.onRebuild(error, result) : false;
-    },
-  };
-
-  return esbuild.build(esbuildOptions);
+  return ctx.watch();
 }
 
 async function _prepare(inputConfig: BuilderConfigType, logger: Logger): Promise<BuildOptions> {
@@ -107,11 +94,8 @@ async function _prepare(inputConfig: BuilderConfigType, logger: Logger): Promise
 
   // fix outdir when only one entry point exists because esbuild
   // doesn't create the correct folder structure
-  if (isSingleEntryPoint(esbuildOptions.entryPoints)) {
-    esbuildOptions.outdir = path.join(
-      esbuildOptions.outdir!,
-      path.basename(path.dirname(esbuildOptions.entryPoints[0]))
-    );
+  if (isSingleEntryPoint(entryPoints)) {
+    esbuildOptions.outdir = path.join(esbuildOptions.outdir!, path.basename(path.dirname(entryPoints[0])));
   }
 
   return esbuildOptions;
