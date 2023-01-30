@@ -14,7 +14,7 @@ export const shimPlugin = ({ shims }: ShimPluginOptions): Plugin => ({
     build.onEnd(result => {
       const outputs = [];
 
-      for (const file of result.outputFiles!) {
+      for (const file of result.outputFiles || []) {
         if (path.extname(file.path) === '.map') {
           // don't modify the .map-files
           outputs.push(file);

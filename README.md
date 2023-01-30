@@ -16,7 +16,7 @@ This tool is designed to work with Azure Functions written in TypeScript. It use
 
 ## Documentation
 
-You find the the complete documentation at [https://beyerleinf.gitbook.io/esbuild-azure-functions/](https://beyerleinf.gitbook.io/esbuild-azure-functions/).
+You can find the complete documentation at [https://beyerleinf.gitbook.io/esbuild-azure-functions/](https://beyerleinf.gitbook.io/esbuild-azure-functions/).
 
 ## Benchmark
 

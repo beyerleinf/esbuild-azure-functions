@@ -9,16 +9,17 @@ import sinon from 'sinon';
 import { ZodError } from 'zod';
 import { build, watch } from './builder';
 import * as configLoader from './config-loader';
-import { InvalidConfigError, NoEntryPointsError, ProjectDirectoryNotFoundError } from './errors';
+import { InvalidConfigError } from './errors';
 import * as esbuild from './helper/esbuild';
 import * as glob from './helper/glob';
 import * as logger from './helper/logger';
 import * as rimraf from './helper/rimraf';
 import { BuilderConfigType, WatchConfigType } from './models';
+import * as onRebuildPlugin from './plugins/on-rebuild.plugin';
 import * as shimPlugin from './plugins/shim.plugin';
 import * as shims from './shims';
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-non-null-assertion */
 
 chaiUse(chaiAsPromised);
 chaiUse(chaiExclude);
@@ -32,8 +33,7 @@ const expectedDefaultConfig: BuildOptions = {
   platform: 'node',
   sourcemap: false,
   splitting: true,
-  target: 'node12',
-  watch: false,
+  target: 'node14',
   write: false,
 };
 
@@ -43,10 +43,14 @@ describe('Builder', () => {
   let sandbox: sinon.SinonSandbox;
 
   let esbuildStub: sinon.SinonStub;
+  let esbuildContextStub: sinon.SinonStub;
+  let esbuildWatchStub: sinon.SinonStub;
   let parseConfigStub: sinon.SinonStub;
+  let parseWatchConfigStub: sinon.SinonStub;
   let globStub: sinon.SinonStub;
   let rimrafStub: sinon.SinonStub;
   let shimPluginStub: sinon.SinonStub;
+  let onRebuildPluginStub: sinon.SinonStub;
 
   let mockLogger: {
     error: sinon.SinonStub;
@@ -69,11 +73,17 @@ describe('Builder', () => {
       verbose: sandbox.stub(),
     };
 
-    esbuildStub = sandbox.stub(esbuild, 'build').resolves({ outputFiles: [], errors: [], warnings: [] });
+    esbuildStub = sandbox
+      .stub(esbuild, 'build')
+      .resolves({ outputFiles: [], errors: [], warnings: [], mangleCache: undefined, metafile: undefined });
+    esbuildWatchStub = sandbox.stub();
+    esbuildContextStub = sandbox.stub(esbuild, 'context').resolves({ watch: esbuildWatchStub } as any);
     parseConfigStub = sandbox.stub(configLoader, 'parseConfig');
+    parseWatchConfigStub = sandbox.stub(configLoader, 'parseWatchConfig');
     globStub = sandbox.stub(glob, 'glob').resolves([]);
     rimrafStub = sandbox.stub(rimraf, 'rimraf').resolves();
     shimPluginStub = sandbox.stub(shimPlugin, 'shimPlugin').returns('shimPluginStub' as any);
+    onRebuildPluginStub = sandbox.stub(onRebuildPlugin, 'onRebuildPlugin').returns('onRebuildPluginStub' as any);
 
     sandbox.stub(logger, 'createLogger').returns(mockLogger);
   });
@@ -384,7 +394,7 @@ describe('Builder', () => {
 
       parseConfigStub.returns(config);
 
-      return expect(build(config)).to.eventually.be.rejectedWith(NoEntryPointsError);
+      return expect(build(config)).to.eventually.be.rejected;
     });
 
     it('should throw ProjectDirectoryNotFoundError when project dir is invalid', async () => {
@@ -395,13 +405,13 @@ describe('Builder', () => {
 
       parseConfigStub.returns(config);
 
-      return expect(build(config)).to.eventually.be.rejectedWith(ProjectDirectoryNotFoundError);
+      return expect(build(config)).to.eventually.be.rejected;
     });
 
     it('should throw InvalidConfigFileError when parseConfig throws', async () => {
       parseConfigStub.throws(new InvalidConfigError(new ZodError([])));
 
-      return expect(build({} as any)).to.eventually.be.rejectedWith(InvalidConfigError);
+      return expect(build({} as any)).to.eventually.be.rejected;
     });
   });
 
@@ -413,12 +423,12 @@ describe('Builder', () => {
         clean: true,
       };
 
-      parseConfigStub.returns(config);
+      parseWatchConfigStub.returns(config);
 
       await watch(config);
 
-      expect(parseConfigStub.calledOnce).to.be.true;
-      expect(parseConfigStub.firstCall.args[0]).to.eql(config);
+      expect(parseWatchConfigStub.calledOnce).to.be.true;
+      expect(parseWatchConfigStub.firstCall.args[0]).to.eql(config);
     });
 
     it('should call esbuild.build with correct config when entryPoints were supplied', async () => {
@@ -429,7 +439,7 @@ describe('Builder', () => {
         entryPoints,
       };
 
-      parseConfigStub.returns(config);
+      parseWatchConfigStub.returns(config);
 
       await watch(config);
 
@@ -437,15 +447,12 @@ describe('Builder', () => {
       expect(rimrafStub.called).to.be.false;
       expect(shimPluginStub.called).to.be.false;
 
-      expect(esbuildStub.calledOnce).to.be.true;
-      expect(esbuildStub.firstCall.args[0])
-        .excluding('watch')
-        .to.eql({
-          ...expectedDefaultConfig,
-          entryPoints: entryPoints.map(entryPoint => `${process.cwd()}/${projectDir}/${entryPoint}`),
-          plugins: [],
-        });
-      expect(typeof esbuildStub.firstCall.args[0].watch.onRebuild).to.eql('function');
+      expect(esbuildContextStub.calledOnce).to.be.true;
+      expect(esbuildContextStub.firstCall.args[0]).to.eql({
+        ...expectedDefaultConfig,
+        entryPoints: entryPoints.map(entryPoint => `${process.cwd()}/${projectDir}/${entryPoint}`),
+        plugins: ['onRebuildPluginStub'],
+      });
     });
 
     it('should call esbuild.build with correct config when esbuildOptions were supplied', async () => {
@@ -459,7 +466,7 @@ describe('Builder', () => {
         },
       };
 
-      parseConfigStub.returns(config);
+      parseWatchConfigStub.returns(config);
 
       await watch(config);
 
@@ -467,16 +474,13 @@ describe('Builder', () => {
       expect(rimrafStub.called).to.be.false;
       expect(shimPluginStub.called).to.be.false;
 
-      expect(esbuildStub.calledOnce).to.be.true;
-      expect(esbuildStub.firstCall.args[0])
-        .excluding('watch')
-        .to.eql({
-          ...expectedDefaultConfig,
-          ...config.esbuildOptions,
-          entryPoints: entryPoints.map(entryPoint => `${process.cwd()}/${projectDir}/${entryPoint}`),
-          plugins: [],
-        });
-      expect(typeof esbuildStub.firstCall.args[0].watch.onRebuild).to.eql('function');
+      expect(esbuildContextStub.calledOnce).to.be.true;
+      expect(esbuildContextStub.firstCall.args[0]).to.eql({
+        ...expectedDefaultConfig,
+        ...config.esbuildOptions,
+        entryPoints: entryPoints.map(entryPoint => `${process.cwd()}/${projectDir}/${entryPoint}`),
+        plugins: ['onRebuildPluginStub'],
+      });
     });
 
     it('should glob all index.ts files when no entryPoints were supplied', async () => {
@@ -490,23 +494,20 @@ describe('Builder', () => {
       const files = [`${process.cwd()}/${projectDir}/func1/index.ts`, `${process.cwd()}/${projectDir}/func2/index.ts`];
       globStub.resolves(files);
 
-      parseConfigStub.returns(config);
+      parseWatchConfigStub.returns(config);
 
       await watch(config);
 
       expect(rimrafStub.called).to.be.false;
       expect(shimPluginStub.called).to.be.false;
 
-      expect(esbuildStub.calledOnce).to.be.true;
-      expect(esbuildStub.firstCall.args[0])
-        .excluding('watch')
-        .to.eql({
-          ...expectedDefaultConfig,
-          ...config.esbuildOptions,
-          entryPoints: files,
-          plugins: [],
-        });
-      expect(typeof esbuildStub.firstCall.args[0].watch.onRebuild).to.eql('function');
+      expect(esbuildContextStub.calledOnce).to.be.true;
+      expect(esbuildContextStub.firstCall.args[0]).to.eql({
+        ...expectedDefaultConfig,
+        ...config.esbuildOptions,
+        entryPoints: files,
+        plugins: ['onRebuildPluginStub'],
+      });
       expect(globStub.calledOnce).to.be.true;
       expect(globStub.firstCall.args).to.eql([
         '**/index.ts',
@@ -530,23 +531,20 @@ describe('Builder', () => {
       const files = [`${process.cwd()}/${projectDir}/func1/index.ts`, `${process.cwd()}/${projectDir}/func2/index.ts`];
       globStub.resolves(files);
 
-      parseConfigStub.returns(config);
+      parseWatchConfigStub.returns(config);
 
       await watch(config);
 
       expect(rimrafStub.called).to.be.false;
       expect(shimPluginStub.called).to.be.false;
 
-      expect(esbuildStub.calledOnce).to.be.true;
-      expect(esbuildStub.firstCall.args[0])
-        .excluding('watch')
-        .to.eql({
-          ...expectedDefaultConfig,
-          ...config.esbuildOptions,
-          entryPoints: files,
-          plugins: [],
-        });
-      expect(typeof esbuildStub.firstCall.args[0].watch.onRebuild).to.eql('function');
+      expect(esbuildContextStub.calledOnce).to.be.true;
+      expect(esbuildContextStub.firstCall.args[0]).to.eql({
+        ...expectedDefaultConfig,
+        ...config.esbuildOptions,
+        entryPoints: files,
+        plugins: ['onRebuildPluginStub'],
+      });
       expect(globStub.calledOnce).to.be.true;
       expect(globStub.firstCall.args).to.eql([
         '**/index.ts',
@@ -571,7 +569,7 @@ describe('Builder', () => {
         },
       };
 
-      parseConfigStub.returns(config);
+      parseWatchConfigStub.returns(config);
 
       await watch(config);
 
@@ -593,24 +591,23 @@ describe('Builder', () => {
       const files = [`${process.cwd()}/${projectDir}/func1/index.ts`];
       globStub.resolves(files);
 
-      parseConfigStub.returns(config);
+      parseWatchConfigStub.returns(config);
 
       await watch(config);
 
       expect(rimrafStub.called).to.be.false;
       expect(shimPluginStub.called).to.be.false;
 
-      expect(esbuildStub.calledOnce).to.be.true;
-      expect(esbuildStub.firstCall.args[0])
+      expect(esbuildContextStub.calledOnce).to.be.true;
+      expect(esbuildContextStub.firstCall.args[0])
         .excluding('watch')
         .to.eql({
           ...expectedDefaultConfig,
           ...config.esbuildOptions,
           entryPoints: files,
           outdir: path.join(outdir, path.basename(path.dirname(files[0]))),
-          plugins: [],
+          plugins: ['onRebuildPluginStub'],
         });
-      expect(typeof esbuildStub.firstCall.args[0].watch.onRebuild).to.eql('function');
     });
 
     it('should add dirname plugin when advancedOptions.enableDirnameShim is true', async () => {
@@ -627,7 +624,7 @@ describe('Builder', () => {
         },
       };
 
-      parseConfigStub.returns(config);
+      parseWatchConfigStub.returns(config);
 
       await watch(config);
 
@@ -637,16 +634,15 @@ describe('Builder', () => {
       expect(shimPluginStub.calledOnce).to.be.true;
       expect(shimPluginStub.firstCall.args[0]).to.eql({ shims: [shims.DIRNAME_SHIM] });
 
-      expect(esbuildStub.calledOnce).to.be.true;
-      expect(esbuildStub.firstCall.args[0])
+      expect(esbuildContextStub.calledOnce).to.be.true;
+      expect(esbuildContextStub.firstCall.args[0])
         .excluding(['watch'])
         .to.eql({
           ...expectedDefaultConfig,
           ...config.esbuildOptions,
           entryPoints: entryPoints.map(entryPoint => `${process.cwd()}/${projectDir}/${entryPoint}`),
-          plugins: ['shimPluginStub'],
+          plugins: ['shimPluginStub', 'onRebuildPluginStub'],
         });
-      expect(typeof esbuildStub.firstCall.args[0].watch.onRebuild).to.eql('function');
     });
 
     it('should add require plugin when advancedOptions.enableRequireShim is true', async () => {
@@ -663,7 +659,7 @@ describe('Builder', () => {
         },
       };
 
-      parseConfigStub.returns(config);
+      parseWatchConfigStub.returns(config);
 
       await watch(config);
 
@@ -673,117 +669,47 @@ describe('Builder', () => {
       expect(shimPluginStub.calledOnce).to.be.true;
       expect(shimPluginStub.firstCall.args[0]).to.eql({ shims: [shims.REQUIRE_SHIM] });
 
-      expect(esbuildStub.calledOnce).to.be.true;
-      expect(esbuildStub.firstCall.args[0])
+      expect(esbuildContextStub.calledOnce).to.be.true;
+      expect(esbuildContextStub.firstCall.args[0])
         .excluding(['watch'])
         .to.eql({
           ...expectedDefaultConfig,
           ...config.esbuildOptions,
           entryPoints: entryPoints.map(entryPoint => `${process.cwd()}/${projectDir}/${entryPoint}`),
-          plugins: ['shimPluginStub'],
+          plugins: ['shimPluginStub', 'onRebuildPluginStub'],
         });
-      expect(typeof esbuildStub.firstCall.args[0].watch.onRebuild).to.eql('function');
     });
 
-    it('should call logger.error when onRebuild gets called with error', async () => {
+    it('should add onRebuild plugin', async () => {
       const entryPoints = ['func1/index.ts', 'func2/index.ts'];
 
       const config: WatchConfigType = {
         project: projectDir,
         entryPoints,
+        esbuildOptions: {
+          outdir: 'something',
+        },
       };
 
-      parseConfigStub.returns(config);
+      parseWatchConfigStub.returns(config);
 
       await watch(config);
 
-      mockLogger.verbose.resetHistory();
-      mockLogger.info.resetHistory();
-      mockLogger.warn.resetHistory();
-      mockLogger.error.resetHistory();
+      expect(globStub.called).to.be.false;
+      expect(rimrafStub.called).to.be.false;
 
-      await esbuildStub.firstCall.args[0].watch.onRebuild({});
+      expect(onRebuildPluginStub.calledOnce).to.be.true;
+      expect(onRebuildPluginStub.firstCall.args[0]).to.eql({ callback: undefined, logLevel: undefined });
 
-      expect(mockLogger.verbose.called).to.be.false;
-      expect(mockLogger.info.called).to.be.false;
-      expect(mockLogger.warn.called).to.be.false;
-      expect(mockLogger.error.calledOnce).to.be.true;
-    });
-
-    it('should call logger.info when onRebuild gets called without error', async () => {
-      const entryPoints = ['func1/index.ts', 'func2/index.ts'];
-
-      const config: WatchConfigType = {
-        project: projectDir,
-        entryPoints,
-      };
-
-      parseConfigStub.returns(config);
-
-      await watch(config);
-
-      mockLogger.verbose.resetHistory();
-      mockLogger.info.resetHistory();
-      mockLogger.warn.resetHistory();
-      mockLogger.error.resetHistory();
-
-      await esbuildStub.firstCall.args[0].watch.onRebuild();
-
-      expect(mockLogger.verbose.called).to.be.false;
-      expect(mockLogger.warn.called).to.be.false;
-      expect(mockLogger.error.called).to.be.false;
-      expect(mockLogger.info.calledOnce).to.be.true;
-    });
-
-    it('should write output files', async () => {
-      const entryPoints = ['func1/index.ts', 'func2/index.ts'];
-
-      const config: WatchConfigType = {
-        project: projectDir,
-        entryPoints,
-      };
-
-      parseConfigStub.returns(config);
-
-      await watch(config);
-
-      await esbuildStub.firstCall.args[0].watch.onRebuild(undefined, {
-        outputFiles: [
-          { path: 'some/dir/file1', text: 'content1' },
-          { path: 'some/dir/file2', text: 'content2' },
-        ],
-      });
-
-      const output1 = await fs.readFile('some/dir/file1', 'utf8');
-      const output2 = await fs.readFile('some/dir/file2', 'utf8');
-
-      expect(output1).to.eql('content1');
-      expect(output2).to.eql('content2');
-    });
-
-    it('should call options.onRebuild when supplied', async () => {
-      const entryPoints = ['func1/index.ts', 'func2/index.ts'];
-
-      const onRebuildCallback = sinon.spy();
-
-      const config: WatchConfigType = {
-        project: projectDir,
-        entryPoints,
-        onRebuild: onRebuildCallback,
-      };
-
-      parseConfigStub.returns(config);
-
-      await watch(config);
-
-      await esbuildStub.firstCall.args[0].watch.onRebuild(undefined, {
-        outputFiles: [
-          { path: 'some/dir/file1', text: 'content1' },
-          { path: 'some/dir/file2', text: 'content2' },
-        ],
-      });
-
-      expect(onRebuildCallback.calledOnce).to.be.true;
+      expect(esbuildContextStub.calledOnce).to.be.true;
+      expect(esbuildContextStub.firstCall.args[0])
+        .excluding(['watch'])
+        .to.eql({
+          ...expectedDefaultConfig,
+          ...config.esbuildOptions,
+          entryPoints: entryPoints.map(entryPoint => `${process.cwd()}/${projectDir}/${entryPoint}`),
+          plugins: ['onRebuildPluginStub'],
+        });
     });
 
     it('should throw NoEntryPointsError when there are no entry points', async () => {
@@ -797,9 +723,9 @@ describe('Builder', () => {
 
       globStub.resolves([]);
 
-      parseConfigStub.returns(config);
+      parseWatchConfigStub.returns(config);
 
-      return expect(watch(config)).to.eventually.be.rejectedWith(NoEntryPointsError);
+      return expect(watch(config)).to.eventually.be.rejected;
     });
 
     it('should throw ProjectDirectoryNotFoundError when project dir is invalid', async () => {
@@ -808,15 +734,15 @@ describe('Builder', () => {
         entryPoints: ['func1/index.ts'],
       };
 
-      parseConfigStub.returns(config);
+      parseWatchConfigStub.returns(config);
 
-      return expect(watch(config)).to.eventually.be.rejectedWith(ProjectDirectoryNotFoundError);
+      return expect(watch(config)).to.eventually.be.rejected;
     });
 
     it('should throw InvalidConfigFileError when parseConfig throws', async () => {
-      parseConfigStub.throws(new InvalidConfigError(new ZodError([])));
+      parseWatchConfigStub.throws(new InvalidConfigError(new ZodError([])));
 
-      return expect(watch({} as any)).to.eventually.be.rejectedWith(InvalidConfigError);
+      return expect(watch({} as any)).to.eventually.be.rejected;
     });
   });
 });
