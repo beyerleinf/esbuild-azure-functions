@@ -1,6 +1,6 @@
 {
   "name": "esbuild-azure-functions",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "A blazingly fast builder for Azure Functions powered by esbuild.",
   "main": "build/src/index.js",
   "types": "build/src/index.d.ts",
