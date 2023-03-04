@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [2.0.1](https://github.com/beyerleinf/esbuild-azure-functions/compare/v2.0.0...v2.0.1) (2023-03-04)
+
+
+### Bug Fixes
+
+* Fix types path in package.json ([1f6ef24](https://github.com/beyerleinf/esbuild-azure-functions/commit/1f6ef248236a2ea308614e064402dbfedbbd580c))
+
 ## [2.0.0](https://github.com/beyerleinf/esbuild-azure-functions/compare/v1.3.0...v2.0.0) (2023-01-30)
 
 
