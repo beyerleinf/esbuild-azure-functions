@@ -45,7 +45,7 @@
     "esbuild": "0.17.5",
     "glob": "^8.1.0",
     "rimraf": "^4.1.2",
-    "zod": "^3.20.2"
+    "zod": "^3.23.8"
   },
   "devDependencies": {
     "@istanbuljs/nyc-config-typescript": "^1.0.2",
