@@ -53,7 +53,9 @@ export async function watch(inputConfig: WatchConfigType) {
 }
 
 async function _prepare(inputConfig: BuilderConfigType, logger: Logger): Promise<BuildOptions> {
-  if (!fs.pathExistsSync(inputConfig.project)) {
+  const projectDirExists = await fs.pathExists(inputConfig.project);
+
+  if (!projectDirExists) {
     logger.error(`Project path ${inputConfig.project} does not exist`);
     throw new ProjectDirectoryNotFoundError(inputConfig.project);
   }
