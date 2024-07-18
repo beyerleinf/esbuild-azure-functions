@@ -1,10 +1,9 @@
-import { expect, use as chaiUse } from 'chai';
+import { use as chaiUse, expect } from 'chai';
 import chaiAsPromised from 'chai-as-promised';
 import chaiExclude from 'chai-exclude';
 import { BuildOptions } from 'esbuild';
 import fs from 'fs/promises';
 import mockFS from 'mock-fs';
-import path from 'path';
 import sinon from 'sinon';
 import { ZodError } from 'zod';
 import { build, watch } from './builder';
@@ -18,6 +17,7 @@ import { BuilderConfigType, WatchConfigType } from './models';
 import * as onRebuildPlugin from './plugins/on-rebuild.plugin';
 import * as shimPlugin from './plugins/shim.plugin';
 import * as shims from './shims';
+import path from 'path';
 
 /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-non-null-assertion */
 
@@ -35,6 +35,7 @@ const expectedDefaultConfig: BuildOptions = {
   splitting: true,
   target: 'node14',
   write: false,
+  external: ['@azure/functions-core'],
 };
 
 const projectDir = 'my/project';
@@ -96,8 +97,8 @@ describe('Builder', () => {
   describe('build', () => {
     it('should parse config', async () => {
       const config: BuilderConfigType = {
-        project: projectDir,
-        entryPoints: ['func/index.ts'],
+        functionsDirectory: projectDir,
+        entryPoints: ['func.ts'],
         clean: true,
       };
 
@@ -110,10 +111,10 @@ describe('Builder', () => {
     });
 
     it('should call esbuild.build with correct config when entryPoints were supplied', async () => {
-      const entryPoints = ['func1/index.ts', 'func2/index.ts'];
+      const entryPoints = ['func1.ts', 'func2.ts'];
 
       const config: BuilderConfigType = {
-        project: projectDir,
+        functionsDirectory: projectDir,
         entryPoints,
       };
 
@@ -128,16 +129,19 @@ describe('Builder', () => {
       expect(esbuildStub.calledOnce).to.be.true;
       expect(esbuildStub.firstCall.args[0]).to.eql({
         ...expectedDefaultConfig,
-        entryPoints: entryPoints.map(entryPoint => `${process.cwd()}/${projectDir}/${entryPoint}`),
+        entryPoints: entryPoints.map(file => ({
+          in: path.join(process.cwd(), config.functionsDirectory, file),
+          out: path.join(config.functionsDirectory, path.parse(file).name),
+        })),
         plugins: [],
       });
     });
 
     it('should call esbuild.build with correct config when esbuildOptions were supplied', async () => {
-      const entryPoints = ['func1/index.ts', 'func2/index.ts'];
+      const entryPoints = ['func1.ts', 'func2.ts'];
 
       const config: BuilderConfigType = {
-        project: projectDir,
+        functionsDirectory: projectDir,
         entryPoints,
         esbuildOptions: {
           outdir: 'something',
@@ -156,20 +160,23 @@ describe('Builder', () => {
       expect(esbuildStub.firstCall.args[0]).to.eql({
         ...expectedDefaultConfig,
         ...config.esbuildOptions,
-        entryPoints: entryPoints.map(entryPoint => `${process.cwd()}/${projectDir}/${entryPoint}`),
+        entryPoints: entryPoints.map(file => ({
+          in: path.join(process.cwd(), config.functionsDirectory, file),
+          out: path.join(config.functionsDirectory, path.parse(file).name),
+        })),
         plugins: [],
       });
     });
 
-    it('should glob all index.ts files when no entryPoints were supplied', async () => {
+    it('should glob all *.ts files when no entryPoints were supplied', async () => {
       const config: BuilderConfigType = {
-        project: projectDir,
+        functionsDirectory: projectDir,
         esbuildOptions: {
           outdir: 'something',
         },
       };
 
-      const files = [`${process.cwd()}/${projectDir}/func1/index.ts`, `${process.cwd()}/${projectDir}/func2/index.ts`];
+      const files = [`${process.cwd()}/${projectDir}/func1.ts`, `${process.cwd()}/${projectDir}/func2.ts`];
       globStub.resolves(files);
 
       parseConfigStub.returns(config);
@@ -183,12 +190,15 @@ describe('Builder', () => {
       expect(esbuildStub.firstCall.args[0]).to.eql({
         ...expectedDefaultConfig,
         ...config.esbuildOptions,
-        entryPoints: files,
+        entryPoints: files.map(file => ({
+          in: file,
+          out: path.join(config.functionsDirectory, path.parse(file).name),
+        })),
         plugins: [],
       });
       expect(globStub.calledOnce).to.be.true;
       expect(globStub.firstCall.args).to.eql([
-        '**/index.ts',
+        '**/*.ts',
         {
           cwd: projectDir,
           absolute: true,
@@ -197,16 +207,16 @@ describe('Builder', () => {
       ]);
     });
 
-    it('should glob all index.ts files when no entryPoints but excludes were supplied', async () => {
+    it('should glob all *.ts files when no entryPoints but excludes were supplied', async () => {
       const config: BuilderConfigType = {
-        project: projectDir,
+        functionsDirectory: projectDir,
         exclude: ['dir1'],
         esbuildOptions: {
           outdir: 'something',
         },
       };
 
-      const files = [`${process.cwd()}/${projectDir}/func1/index.ts`, `${process.cwd()}/${projectDir}/func2/index.ts`];
+      const files = [`${process.cwd()}/${projectDir}/func1.ts`, `${process.cwd()}/${projectDir}/func2.ts`];
       globStub.resolves(files);
 
       parseConfigStub.returns(config);
@@ -220,12 +230,15 @@ describe('Builder', () => {
       expect(esbuildStub.firstCall.args[0]).to.eql({
         ...expectedDefaultConfig,
         ...config.esbuildOptions,
-        entryPoints: files,
+        entryPoints: files.map(file => ({
+          in: file,
+          out: path.join(config.functionsDirectory, path.parse(file).name),
+        })),
         plugins: [],
       });
       expect(globStub.calledOnce).to.be.true;
       expect(globStub.firstCall.args).to.eql([
-        '**/index.ts',
+        '**/*.ts',
         {
           cwd: projectDir,
           absolute: true,
@@ -235,11 +248,11 @@ describe('Builder', () => {
     });
 
     it('should rimraf outdir when clean is true', async () => {
-      const entryPoints = ['func1/index.ts', 'func2/index.ts'];
+      const entryPoints = ['func1.ts', 'func2.ts'];
       const outdir = 'someOutdir';
 
       const config: BuilderConfigType = {
-        project: projectDir,
+        functionsDirectory: projectDir,
         entryPoints,
         clean: true,
         esbuildOptions: {
@@ -255,42 +268,11 @@ describe('Builder', () => {
       expect(rimrafStub.firstCall.args[0]).to.eql(outdir);
     });
 
-    it('should fix outdir when only one entry point is found', async () => {
-      const outdir = 'some/outdir';
-
-      const config: BuilderConfigType = {
-        project: projectDir,
-        exclude: ['dir1'],
-        esbuildOptions: {
-          outdir,
-        },
-      };
-
-      const files = [`${process.cwd()}/${projectDir}/func1/index.ts`];
-      globStub.resolves(files);
-
-      parseConfigStub.returns(config);
-
-      await build(config);
-
-      expect(rimrafStub.called).to.be.false;
-      expect(shimPluginStub.called).to.be.false;
-
-      expect(esbuildStub.calledOnce).to.be.true;
-      expect(esbuildStub.firstCall.args[0]).to.eql({
-        ...expectedDefaultConfig,
-        ...config.esbuildOptions,
-        entryPoints: files,
-        outdir: path.join(outdir, path.basename(path.dirname(files[0]))),
-        plugins: [],
-      });
-    });
-
     it('should add shim plugin with dirname shim when advancedOptions.enableDirnameShim is true', async () => {
-      const entryPoints = ['func1/index.ts', 'func2/index.ts'];
+      const entryPoints = ['func1.ts', 'func2.ts'];
 
       const config: BuilderConfigType = {
-        project: projectDir,
+        functionsDirectory: projectDir,
         entryPoints,
         esbuildOptions: {
           outdir: 'something',
@@ -314,16 +296,19 @@ describe('Builder', () => {
       expect(esbuildStub.firstCall.args[0]).to.eql({
         ...expectedDefaultConfig,
         ...config.esbuildOptions,
-        entryPoints: entryPoints.map(entryPoint => `${process.cwd()}/${projectDir}/${entryPoint}`),
+        entryPoints: entryPoints.map(file => ({
+          in: path.join(process.cwd(), config.functionsDirectory, file),
+          out: path.join(config.functionsDirectory, path.parse(file).name),
+        })),
         plugins: ['shimPluginStub'],
       });
     });
 
     it('should add shim plugin with require shim when advancedOptions.enableRequireShim is true', async () => {
-      const entryPoints = ['func1/index.ts', 'func2/index.ts'];
+      const entryPoints = ['func1.ts', 'func2.ts'];
 
       const config: BuilderConfigType = {
-        project: projectDir,
+        functionsDirectory: projectDir,
         entryPoints,
         esbuildOptions: {
           outdir: 'something',
@@ -347,13 +332,16 @@ describe('Builder', () => {
       expect(esbuildStub.firstCall.args[0]).to.eql({
         ...expectedDefaultConfig,
         ...config.esbuildOptions,
-        entryPoints: entryPoints.map(entryPoint => `${process.cwd()}/${projectDir}/${entryPoint}`),
+        entryPoints: entryPoints.map(file => ({
+          in: path.join(process.cwd(), config.functionsDirectory, file),
+          out: path.join(config.functionsDirectory, path.parse(file).name),
+        })),
         plugins: ['shimPluginStub'],
       });
     });
 
     it('should write output files', async () => {
-      const entryPoints = ['func1/index.ts', 'func2/index.ts'];
+      const entryPoints = ['func1.ts', 'func2.ts'];
 
       esbuildStub.resolves({
         outputFiles: [
@@ -363,7 +351,7 @@ describe('Builder', () => {
       });
 
       const config: BuilderConfigType = {
-        project: projectDir,
+        functionsDirectory: projectDir,
         entryPoints,
         esbuildOptions: {
           outdir: 'something',
@@ -383,7 +371,7 @@ describe('Builder', () => {
 
     it('should throw NoEntryPointsError when there are no entry points', async () => {
       const config: BuilderConfigType = {
-        project: projectDir,
+        functionsDirectory: projectDir,
         exclude: ['dir1'],
         esbuildOptions: {
           outdir: 'something',
@@ -399,8 +387,8 @@ describe('Builder', () => {
 
     it('should throw ProjectDirectoryNotFoundError when project dir is invalid', async () => {
       const config: BuilderConfigType = {
-        project: 'some/dir',
-        entryPoints: ['func1/index.ts'],
+        functionsDirectory: 'some/dir',
+        entryPoints: ['func1.ts'],
       };
 
       parseConfigStub.returns(config);
@@ -418,8 +406,8 @@ describe('Builder', () => {
   describe('watch', () => {
     it('should parse config', async () => {
       const config: WatchConfigType = {
-        project: projectDir,
-        entryPoints: ['func/index.ts'],
+        functionsDirectory: projectDir,
+        entryPoints: ['func.ts'],
         clean: true,
       };
 
@@ -432,10 +420,10 @@ describe('Builder', () => {
     });
 
     it('should call esbuild.build with correct config when entryPoints were supplied', async () => {
-      const entryPoints = ['func1/index.ts', 'func2/index.ts'];
+      const entryPoints = ['func1.ts', 'func2.ts'];
 
       const config: WatchConfigType = {
-        project: projectDir,
+        functionsDirectory: projectDir,
         entryPoints,
       };
 
@@ -450,16 +438,19 @@ describe('Builder', () => {
       expect(esbuildContextStub.calledOnce).to.be.true;
       expect(esbuildContextStub.firstCall.args[0]).to.eql({
         ...expectedDefaultConfig,
-        entryPoints: entryPoints.map(entryPoint => `${process.cwd()}/${projectDir}/${entryPoint}`),
+        entryPoints: entryPoints.map(file => ({
+          in: path.join(process.cwd(), config.functionsDirectory, file),
+          out: path.join(config.functionsDirectory, path.parse(file).name),
+        })),
         plugins: ['onRebuildPluginStub'],
       });
     });
 
     it('should call esbuild.build with correct config when esbuildOptions were supplied', async () => {
-      const entryPoints = ['func1/index.ts', 'func2/index.ts'];
+      const entryPoints = ['func1.ts', 'func2.ts'];
 
       const config: WatchConfigType = {
-        project: projectDir,
+        functionsDirectory: projectDir,
         entryPoints,
         esbuildOptions: {
           outdir: 'something',
@@ -478,20 +469,23 @@ describe('Builder', () => {
       expect(esbuildContextStub.firstCall.args[0]).to.eql({
         ...expectedDefaultConfig,
         ...config.esbuildOptions,
-        entryPoints: entryPoints.map(entryPoint => `${process.cwd()}/${projectDir}/${entryPoint}`),
+        entryPoints: entryPoints.map(file => ({
+          in: path.join(process.cwd(), config.functionsDirectory, file),
+          out: path.join(config.functionsDirectory, path.parse(file).name),
+        })),
         plugins: ['onRebuildPluginStub'],
       });
     });
 
-    it('should glob all index.ts files when no entryPoints were supplied', async () => {
+    it('should glob all *.ts files when no entryPoints were supplied', async () => {
       const config: WatchConfigType = {
-        project: projectDir,
+        functionsDirectory: projectDir,
         esbuildOptions: {
           outdir: 'something',
         },
       };
 
-      const files = [`${process.cwd()}/${projectDir}/func1/index.ts`, `${process.cwd()}/${projectDir}/func2/index.ts`];
+      const files = [`${process.cwd()}/${projectDir}/func1.ts`, `${process.cwd()}/${projectDir}/func2.ts`];
       globStub.resolves(files);
 
       parseWatchConfigStub.returns(config);
@@ -505,12 +499,15 @@ describe('Builder', () => {
       expect(esbuildContextStub.firstCall.args[0]).to.eql({
         ...expectedDefaultConfig,
         ...config.esbuildOptions,
-        entryPoints: files,
+        entryPoints: files.map(file => ({
+          in: file,
+          out: path.join(config.functionsDirectory, path.parse(file).name),
+        })),
         plugins: ['onRebuildPluginStub'],
       });
       expect(globStub.calledOnce).to.be.true;
       expect(globStub.firstCall.args).to.eql([
-        '**/index.ts',
+        '**/*.ts',
         {
           cwd: projectDir,
           absolute: true,
@@ -519,16 +516,16 @@ describe('Builder', () => {
       ]);
     });
 
-    it('should glob all index.ts files when no entryPoints but excludes were supplied', async () => {
+    it('should glob all *.ts files when no entryPoints but excludes were supplied', async () => {
       const config: WatchConfigType = {
-        project: projectDir,
+        functionsDirectory: projectDir,
         exclude: ['dir1'],
         esbuildOptions: {
           outdir: 'something',
         },
       };
 
-      const files = [`${process.cwd()}/${projectDir}/func1/index.ts`, `${process.cwd()}/${projectDir}/func2/index.ts`];
+      const files = [`${process.cwd()}/${projectDir}/func1.ts`, `${process.cwd()}/${projectDir}/func2.ts`];
       globStub.resolves(files);
 
       parseWatchConfigStub.returns(config);
@@ -542,12 +539,15 @@ describe('Builder', () => {
       expect(esbuildContextStub.firstCall.args[0]).to.eql({
         ...expectedDefaultConfig,
         ...config.esbuildOptions,
-        entryPoints: files,
+        entryPoints: files.map(file => ({
+          in: file,
+          out: path.join(config.functionsDirectory, path.parse(file).name),
+        })),
         plugins: ['onRebuildPluginStub'],
       });
       expect(globStub.calledOnce).to.be.true;
       expect(globStub.firstCall.args).to.eql([
-        '**/index.ts',
+        '**/*.ts',
         {
           cwd: projectDir,
           absolute: true,
@@ -557,11 +557,11 @@ describe('Builder', () => {
     });
 
     it('should rimraf outdir when clean is true', async () => {
-      const entryPoints = ['func1/index.ts', 'func2/index.ts'];
+      const entryPoints = ['func1.ts', 'func2.ts'];
       const outdir = 'someOutdir';
 
       const config: WatchConfigType = {
-        project: projectDir,
+        functionsDirectory: projectDir,
         entryPoints,
         clean: true,
         esbuildOptions: {
@@ -577,44 +577,11 @@ describe('Builder', () => {
       expect(rimrafStub.firstCall.args[0]).to.eql(outdir);
     });
 
-    it('should fix outdir when only one entry point is found', async () => {
-      const outdir = 'some/outdir';
-
-      const config: WatchConfigType = {
-        project: projectDir,
-        exclude: ['dir1'],
-        esbuildOptions: {
-          outdir,
-        },
-      };
-
-      const files = [`${process.cwd()}/${projectDir}/func1/index.ts`];
-      globStub.resolves(files);
-
-      parseWatchConfigStub.returns(config);
-
-      await watch(config);
-
-      expect(rimrafStub.called).to.be.false;
-      expect(shimPluginStub.called).to.be.false;
-
-      expect(esbuildContextStub.calledOnce).to.be.true;
-      expect(esbuildContextStub.firstCall.args[0])
-        .excluding('watch')
-        .to.eql({
-          ...expectedDefaultConfig,
-          ...config.esbuildOptions,
-          entryPoints: files,
-          outdir: path.join(outdir, path.basename(path.dirname(files[0]))),
-          plugins: ['onRebuildPluginStub'],
-        });
-    });
-
     it('should add dirname plugin when advancedOptions.enableDirnameShim is true', async () => {
-      const entryPoints = ['func1/index.ts', 'func2/index.ts'];
+      const entryPoints = ['func1.ts', 'func2.ts'];
 
       const config: WatchConfigType = {
-        project: projectDir,
+        functionsDirectory: projectDir,
         entryPoints,
         esbuildOptions: {
           outdir: 'something',
@@ -640,16 +607,19 @@ describe('Builder', () => {
         .to.eql({
           ...expectedDefaultConfig,
           ...config.esbuildOptions,
-          entryPoints: entryPoints.map(entryPoint => `${process.cwd()}/${projectDir}/${entryPoint}`),
+          entryPoints: entryPoints.map(file => ({
+            in: path.join(process.cwd(), config.functionsDirectory, file),
+            out: path.join(config.functionsDirectory, path.parse(file).name),
+          })),
           plugins: ['shimPluginStub', 'onRebuildPluginStub'],
         });
     });
 
     it('should add require plugin when advancedOptions.enableRequireShim is true', async () => {
-      const entryPoints = ['func1/index.ts', 'func2/index.ts'];
+      const entryPoints = ['func1.ts', 'func2.ts'];
 
       const config: WatchConfigType = {
-        project: projectDir,
+        functionsDirectory: projectDir,
         entryPoints,
         esbuildOptions: {
           outdir: 'something',
@@ -675,16 +645,19 @@ describe('Builder', () => {
         .to.eql({
           ...expectedDefaultConfig,
           ...config.esbuildOptions,
-          entryPoints: entryPoints.map(entryPoint => `${process.cwd()}/${projectDir}/${entryPoint}`),
+          entryPoints: entryPoints.map(file => ({
+            in: path.join(process.cwd(), config.functionsDirectory, file),
+            out: path.join(config.functionsDirectory, path.parse(file).name),
+          })),
           plugins: ['shimPluginStub', 'onRebuildPluginStub'],
         });
     });
 
     it('should add onRebuild plugin', async () => {
-      const entryPoints = ['func1/index.ts', 'func2/index.ts'];
+      const entryPoints = ['func1.ts', 'func2.ts'];
 
       const config: WatchConfigType = {
-        project: projectDir,
+        functionsDirectory: projectDir,
         entryPoints,
         esbuildOptions: {
           outdir: 'something',
@@ -707,14 +680,17 @@ describe('Builder', () => {
         .to.eql({
           ...expectedDefaultConfig,
           ...config.esbuildOptions,
-          entryPoints: entryPoints.map(entryPoint => `${process.cwd()}/${projectDir}/${entryPoint}`),
+          entryPoints: entryPoints.map(file => ({
+            in: path.join(process.cwd(), config.functionsDirectory, file),
+            out: path.join(config.functionsDirectory, path.parse(file).name),
+          })),
           plugins: ['onRebuildPluginStub'],
         });
     });
 
     it('should throw NoEntryPointsError when there are no entry points', async () => {
       const config: WatchConfigType = {
-        project: projectDir,
+        functionsDirectory: projectDir,
         exclude: ['dir1'],
         esbuildOptions: {
           outdir: 'something',
@@ -730,8 +706,8 @@ describe('Builder', () => {
 
     it('should throw ProjectDirectoryNotFoundError when project dir is invalid', async () => {
       const config: WatchConfigType = {
-        project: 'some/dir',
-        entryPoints: ['func1/index.ts'],
+        functionsDirectory: 'some/dir',
+        entryPoints: ['func1.ts'],
       };
 
       parseWatchConfigStub.returns(config);

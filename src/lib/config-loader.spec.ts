@@ -18,7 +18,7 @@ describe('ConfigLoader', () => {
   const configPathNotJson = '/my/not.json';
 
   const validConfig: BuilderConfigType = {
-    project: 'my-project',
+    functionsDirectory: 'src/functions',
     entryPoints: ['EntryPoint1'],
     exclude: ['Exclude1'],
     clean: true,

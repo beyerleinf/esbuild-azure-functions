@@ -13,7 +13,7 @@ const AdvancedBuilderOptions = z.object({
 });
 
 export const BuilderConfig = z.object({
-  project: z.string(),
+  functionsDirectory: z.string(),
   entryPoints: z.array(z.string()).optional(),
   exclude: z.array(z.string()).optional(),
   esbuildOptions: EsbuildOptions.optional(),
