@@ -1,10 +1,10 @@
-import { expect, use as chaiUse } from 'chai';
+import { use as chaiUse, expect } from 'chai';
 import chaiAsPromised from 'chai-as-promised';
 import mockFS from 'mock-fs';
 import sinon from 'sinon';
 import { ZodError } from 'zod';
 import { loadConfig, parseConfig, parseWatchConfig } from './config-loader';
-import { BuilderConfig, BuilderConfigType, WatchConfig } from './models';
+import { BuilderConfig, BuilderConfigInputType, WatchConfig } from './models';
 
 chaiUse(chaiAsPromised);
 
@@ -17,11 +17,9 @@ describe('ConfigLoader', () => {
   const configPathValid = '/my/valid-config.json';
   const configPathNotJson = '/my/not.json';
 
-  const validConfig: BuilderConfigType = {
-    functionsDirectory: 'src/functions',
+  const validConfig: BuilderConfigInputType = {
     entryPoints: ['EntryPoint1'],
     exclude: ['Exclude1'],
-    clean: true,
     logLevel: 'warn',
   };
 

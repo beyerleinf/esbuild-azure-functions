@@ -8,16 +8,17 @@ const BuilderLogLevel = z.enum(['verbose', 'info', 'warn', 'error', 'off']);
 const EsbuildOptions = z.any();
 
 const AdvancedBuilderOptions = z.object({
+  enableCodeSplitting: z.boolean().optional(),
   enableDirnameShim: z.boolean().optional(),
   enableRequireShim: z.boolean().optional(),
 });
 
 export const BuilderConfig = z.object({
-  functionsDirectory: z.string(),
+  functionsDirectory: z.string().default('src/functions'),
   entryPoints: z.array(z.string()).optional(),
   exclude: z.array(z.string()).optional(),
   esbuildOptions: EsbuildOptions.optional(),
-  clean: z.boolean().optional(),
+  clean: z.boolean().default(true),
   logLevel: BuilderLogLevel.optional(),
   advancedOptions: AdvancedBuilderOptions.optional(),
 });
@@ -29,6 +30,8 @@ export const WatchConfig = BuilderConfig.merge(
 );
 
 export type BuilderConfigType = z.infer<typeof BuilderConfig>;
+export type BuilderConfigInputType = z.input<typeof BuilderConfig>;
 export type WatchConfigType = z.infer<typeof WatchConfig>;
+export type WatchConfigInputType = z.input<typeof WatchConfig>;
 export type BuilderLogLevelType = z.infer<typeof BuilderLogLevel>;
 export type AdvancedBuilderOptionsType = z.infer<typeof AdvancedBuilderOptions>;
