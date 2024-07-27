@@ -14,12 +14,12 @@ const defaultConfig: BuildOptions = {
   format: 'esm',
   minify: true,
   outdir: 'dist',
-  outExtension: { '.js': '.mjs' },
   platform: 'node',
   sourcemap: false,
-  splitting: true,
+  splitting: false,
   target: 'node14',
   write: false,
+  external: ['@azure/functions-core'],
 };
 
 export async function build(inputConfig: BuilderConfigType) {
@@ -32,7 +32,7 @@ export async function build(inputConfig: BuilderConfigType) {
 
   const result = await esbuild.build(esbuildOptions);
 
-  for (const file of result.outputFiles || []) {
+  for (const file of result.outputFiles) {
     await fs.outputFile(file.path, file.text);
   }
 
@@ -45,7 +45,7 @@ export async function watch(inputConfig: WatchConfigType) {
 
   const esbuildOptions = await _prepare(inputConfig, logger);
 
-  esbuildOptions.plugins?.push(onRebuildPlugin({ callback: config.onRebuild, logLevel: config.logLevel }));
+  esbuildOptions.plugins.push(onRebuildPlugin({ callback: config.onRebuild, logLevel: config.logLevel }));
 
   const ctx = await esbuild.context(esbuildOptions);
 
@@ -53,24 +53,27 @@ export async function watch(inputConfig: WatchConfigType) {
 }
 
 async function _prepare(inputConfig: BuilderConfigType, logger: Logger): Promise<BuildOptions> {
-  if (!fs.pathExistsSync(inputConfig.project)) {
-    logger.error(`Project path ${inputConfig.project} does not exist`);
-    throw new ProjectDirectoryNotFoundError(inputConfig.project);
+  const projectDirExists = await fs.pathExists(inputConfig.functionsDirectory);
+
+  if (!projectDirExists) {
+    logger.error(`Project path ${inputConfig.functionsDirectory} does not exist`);
+    throw new ProjectDirectoryNotFoundError(inputConfig.functionsDirectory);
   }
 
-  logger.verbose(`📂 Project root ${path.resolve(inputConfig.project)}`);
+  logger.verbose(`📂 Functions Directory ${path.resolve(inputConfig.functionsDirectory)}`);
 
   let entryPoints: string[] = [];
 
   if (inputConfig.entryPoints) {
-    entryPoints = inputConfig.entryPoints.map(entryPoint => path.resolve(inputConfig.project, entryPoint));
+    // TODO better lookup for entry points
+    entryPoints = inputConfig.entryPoints.map(entryPoint => path.resolve(inputConfig.functionsDirectory, entryPoint));
   } else {
-    logger.verbose('🔍 No entry points specified, looking for index.ts files');
+    logger.verbose(`🔍 No entry points specified, looking for functions in ${inputConfig.functionsDirectory} files`);
 
     const exclude = inputConfig.exclude || [];
 
-    entryPoints = await glob('**/index.ts', {
-      cwd: inputConfig.project,
+    entryPoints = await glob('**/*.ts', {
+      cwd: inputConfig.functionsDirectory,
       absolute: true,
       ignore: ['**/node_modules/**', ...exclude],
     });
@@ -78,7 +81,7 @@ async function _prepare(inputConfig: BuilderConfigType, logger: Logger): Promise
 
   if (entryPoints.length === 0) {
     logger.error('😔 No entry points available.');
-    throw new NoEntryPointsError(inputConfig.project);
+    throw new NoEntryPointsError(inputConfig.functionsDirectory);
   }
 
   logger.verbose(`🔨 Building ${entryPoints.length} entry points`);
@@ -86,19 +89,20 @@ async function _prepare(inputConfig: BuilderConfigType, logger: Logger): Promise
   const esbuildOptions: BuildOptions = {
     ...defaultConfig,
     ...inputConfig.esbuildOptions,
-    entryPoints,
+    entryPoints: entryPoints.map(file => ({
+      in: file,
+      out: path.join(inputConfig.functionsDirectory, path.parse(file).name),
+    })),
     plugins: _getPlugins(inputConfig),
   };
 
+  if (inputConfig.advancedOptions?.enableCodeSplitting) {
+    esbuildOptions.splitting = true;
+    esbuildOptions.outExtension = { '.js': '.mjs' };
+  }
+
   // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
   await _clean(logger, esbuildOptions.outdir!, inputConfig.clean);
-
-  // fix outdir when only one entry point exists because esbuild
-  // doesn't create the correct folder structure
-  if (isSingleEntryPoint(entryPoints)) {
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    esbuildOptions.outdir = path.join(esbuildOptions.outdir!, path.basename(path.dirname(entryPoints[0])));
-  }
 
   return esbuildOptions;
 }
@@ -129,8 +133,4 @@ function _getPlugins(config: BuilderConfigType) {
   }
 
   return plugins;
-}
-
-function isSingleEntryPoint(entryPoints?: string[] | Record<string, string>): entryPoints is string[] {
-  return !!entryPoints && Array.isArray(entryPoints) && entryPoints.length === 1;
 }

@@ -5,7 +5,9 @@
     "declaration": true,
     "sourceMap": true,
     "esModuleInterop": true,
-    "lib": ["es2019", "DOM"]
+    "lib": ["es2019", "DOM"],
+    "target": "ES6",
+    "module": "CommonJS"
   },
   "include": ["src/**/*.ts"],
   "exclude": ["build", "node_modules", "src/**/*.spec.ts"]
